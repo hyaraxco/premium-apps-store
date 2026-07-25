@@ -1,65 +1,187 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ProductCard } from "@/components/product-card";
+import { StatusMeta } from "@/components/status-meta";
+import { categories, getFeaturedProducts, products } from "@/lib/products";
+import { formatIDR } from "@/lib/format";
 
-export default function Home() {
+export default function HomePage() {
+  const featured = getFeaturedProducts();
+  const lowest = Math.min(...products.map((p) => p.minPriceIDR || p.price || 0));
+  const readyCount = products.filter((p) => p.status === "available").length;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div>
+      {/* Hero — left-weighted editorial, not centered SaaS template */}
+      <section className="relative overflow-hidden border-b border-line">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.28]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 1px 1px, #c4b8a8 1px, transparent 0)",
+            backgroundSize: "22px 22px",
+            maskImage:
+              "linear-gradient(to bottom, black 35%, transparent 95%)",
+          }}
+          aria-hidden
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 sm:py-18 lg:grid-cols-[1.2fr_0.8fr] lg:items-end lg:gap-12 lg:py-20">
+          {/* min-w-0: grid items default min-width:auto was clipping hero on ~375px */}
+          <div className="min-w-0">
+            <p className="stamp inline-flex items-center gap-2 rounded-md border border-line bg-paper/90 px-2.5 py-1 text-ink/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden />
+              {readyCount} siap kirim · {products.length} di katalog
+            </p>
+            <h1 className="mt-5 w-full max-w-xl text-[2rem] font-semibold leading-[1.12] tracking-tight text-ink sm:text-5xl sm:leading-[1.06]">
+              Lisensi premium &amp; subscription, siap pakai.
+            </h1>
+            <p className="mt-4 w-full max-w-lg text-[15px] leading-relaxed text-ink/65 sm:text-base">
+              Hyarax Apps mengkurasi app untuk creator, developer, dan tim kecil.
+              Harga Rupiah, status stok (siap kirim / terbatas / pre-order),
+              aktivasi digital ke email Anda.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2.5">
+              <Link
+                href="/katalog"
+                transitionTypes={["nav-forward"]}
+                className="inline-flex h-11 items-center justify-center rounded-lg bg-ink px-5 text-sm font-medium text-paper transition hover:bg-ink/90"
+              >
+                Lihat katalog
+              </Link>
+              <Link
+                href="/cara-kerja"
+                transitionTypes={["nav-forward"]}
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-line bg-paper px-5 text-sm font-medium text-ink transition hover:bg-sand/50"
+              >
+                Cara aktivasi
+              </Link>
+            </div>
+            <dl className="mt-9 grid max-w-md grid-cols-3 gap-3 border-t border-line pt-5">
+              <div>
+                <dt className="stamp text-ink/40">Mulai dari</dt>
+                <dd className="mt-1 text-sm font-semibold tabular-nums text-ink">
+                  {formatIDR(lowest)}
+                </dd>
+              </div>
+              <div>
+                <dt className="stamp text-ink/40">Stack</dt>
+                <dd className="mt-1 text-sm font-semibold text-ink">
+                  {categories.length - 1} kategori
+                </dd>
+              </div>
+              <div>
+                <dt className="stamp text-ink/40">Dukungan</dt>
+                <dd className="mt-1 text-sm font-semibold text-ink">09–21 WIB</dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* Live demand strip — product-specific, not fake metrics */}
+          <div className="relative min-w-0">
+            <div className="overflow-hidden border border-line bg-paper rounded-[var(--radius-xl)]">
+              <div className="flex items-center justify-between gap-2 border-b border-line bg-sand/40 px-4 py-2.5">
+                <span className="stamp text-ink/50">Sedang dicari</span>
+                <span className="stamp shrink-0 text-ink/40">Harga IDR</span>
+              </div>
+              <ul className="divide-y divide-line">
+                {featured.slice(0, 4).map((p) => (
+                  <li key={p.id}>
+                    <Link
+                      href={`/apps/${p.slug}`}
+                      transitionTypes={["nav-forward"]}
+                      className="flex min-w-0 items-center gap-3 px-4 py-3 transition hover:bg-sand/35"
+                    >
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-xs font-bold text-white"
+                        style={{ backgroundColor: p.accent }}
+                        aria-hidden
+                      >
+                        {p.icon}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-ink">
+                          {p.name}
+                        </span>
+                        <StatusMeta
+                          status={p.status}
+                          meta={p.delivery.split("·")[0]?.trim()}
+                          className="mt-0.5"
+                        />
+                      </span>
+                      <span className="shrink-0 text-sm font-semibold tabular-nums text-ink">
+                        {formatIDR(p.minPriceIDR || p.price || 0)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      </section>
+
+      {/* Catalog highlight grid */}
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-18">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="stamp text-ink/40">Pilihan minggu ini</p>
+            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+              Lisensi siap kirim
+            </h2>
+          </div>
+          <Link
+            href="/katalog"
+            transitionTypes={["nav-forward"]}
+            className="text-sm font-medium text-ink underline-offset-4 hover:underline"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            Lihat semua →
+          </Link>
         </div>
-      </main>
+
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </section>
+
+      {/* Domain categories overview */}
+      <section className="border-t border-line bg-sand/30 py-14 sm:py-16">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="stamp text-ink/40">Kategori</p>
+              <h2 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
+                Berdasarkan kebutuhan tim
+              </h2>
+            </div>
+            <Link
+              href="/katalog"
+              transitionTypes={["nav-forward"]}
+              className="text-sm font-medium text-ink/70 underline-offset-4 hover:text-ink hover:underline"
+            >
+              Semua app
+            </Link>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {categories
+              .filter((c) => c.id !== "all")
+              .map((cat) => (
+                <Link
+                  key={cat.id}
+                  href={`/katalog?kategori=${cat.id}`}
+                  transitionTypes={["nav-forward"]}
+                  className="rounded-lg border border-line bg-paper p-3.5 transition-colors hover:border-ink/20 hover:bg-sand/30"
+                >
+                  <p className="stamp text-ink/40">{cat.label}</p>
+                  <p className="mt-1 text-[15px] font-semibold text-ink">
+                    {cat.description}
+                  </p>
+                </Link>
+              ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,26 +1,342 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (toggle + system via FOUC script) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #faf8f5;
+  --sand: #f0ebe3;
+  --sand-deep: #e4ddd2;
+  --ink: #1c1917;
+  --line: #e7e0d6;
+  --muted: #78716c;
+  --focus: #1c1917;
+  --shadow-lift: 0 10px 28px -14px rgba(28, 25, 23, 0.28);
+  /* Status dots — same family light/dark (ink-adjacent, not random SaaS pastels) */
+  --status-ok: #3f7a4c;
+  --status-warn: #b45309;
+  --status-hold: #8a6d1f;
+  /* Editorial: tighter than soft SaaS */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.625rem;
+  --radius-xl: 0.75rem;
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #12100e;
+  --sand: #1c1916;
+  --sand-deep: #2a2622;
+  --ink: #f5f0e8;
+  --line: #2f2a25;
+  --muted: #a39e96;
+  --focus: #f5f0e8;
+  --shadow-lift: 0 14px 36px -12px rgba(0, 0, 0, 0.55);
+  --status-ok: #6fbf7f;
+  --status-warn: #e8a04a;
+  --status-hold: #d4b45a;
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-sand: var(--sand);
+  --color-sand-deep: var(--sand-deep);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
 }
 
-@media (prefers-color-scheme: dark) {
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    overflow-x: clip;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+    transition:
+      background-color 0.22s ease,
+      color 0.22s ease;
+  }
+
+  ::selection {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  summary:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--ink) 45%, transparent);
+    outline-offset: 2px;
+  }
+
+  /* Root: soft crossfade under shared-element morphs */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.28s;
+    animation-timing-function: ease;
+  }
+
+  ::view-transition-old(root) {
+    animation-name: sb-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: sb-fade-in;
+  }
+
+  /*
+   * Browser Back/Forward (HistoryNav sets html[data-nav-dir])
+   * Overrides root fade with directional swipe — no React.startTransition patch
+   */
+  html[data-nav-dir="nav-forward"]::view-transition-old(root) {
+    --slide-offset: -56px;
+    animation:
+      150ms ease-in both sb-nav-fade reverse,
+      380ms ease-in-out both sb-nav-slide reverse;
+  }
+
+  html[data-nav-dir="nav-forward"]::view-transition-new(root) {
+    --slide-offset: 56px;
+    animation:
+      220ms ease-out 150ms both sb-nav-fade,
+      380ms ease-in-out both sb-nav-slide;
+  }
+
+  html[data-nav-dir="nav-back"]::view-transition-old(root) {
+    --slide-offset: 56px;
+    animation:
+      150ms ease-in both sb-nav-fade reverse,
+      380ms ease-in-out both sb-nav-slide reverse;
+  }
+
+  html[data-nav-dir="nav-back"]::view-transition-new(root) {
+    --slide-offset: -56px;
+    animation:
+      220ms ease-out 150ms both sb-nav-fade,
+      380ms ease-in-out both sb-nav-slide;
+  }
+
+  @keyframes sb-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes sb-fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /*
+   * Gallery handoff morphs:
+   * hero band, icon, title, price (share="morph" → class .morph)
+   */
+  ::view-transition-group(.morph) {
+    animation-duration: 0.42s;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 1;
+  }
+
+  ::view-transition-image-pair(.morph) {
+    animation-name: sb-via-soft;
+  }
+
+  @keyframes sb-via-soft {
+    28% {
+      filter: blur(2.5px);
+    }
+  }
+
+  /* Enter: body / buy-box / related (enter="slide-up") */
+  ::view-transition-new(.slide-up) {
+    animation: sb-slide-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: 0.08s;
+  }
+
+  ::view-transition-old(.slide-up) {
+    animation: sb-fade-out 0.18s ease both;
+  }
+
+  @keyframes sb-slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Enter: breadcrumb / secondary chrome (enter="fade-in") */
+  ::view-transition-new(.fade-in) {
+    animation: sb-fade-in 0.32s ease both;
+    animation-delay: 0.12s;
+  }
+
+  ::view-transition-old(.fade-in) {
+    animation: sb-fade-out 0.16s ease both;
+  }
+
+  /*
+   * Swipe-feel history (transitionTypes nav-forward / nav-back)
+   * Forward: old exits left, new enters from right
+   * Back: old exits right, new enters from left
+   */
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --nav-exit: 150ms;
+    --nav-enter: 220ms;
+    --nav-slide: 380ms;
+  }
+
+  ::view-transition-old(.nav-forward) {
+    --slide-offset: -56px;
+    animation:
+      var(--nav-exit) ease-in both sb-nav-fade reverse,
+      var(--nav-slide) ease-in-out both sb-nav-slide reverse;
+  }
+
+  ::view-transition-new(.nav-forward) {
+    --slide-offset: 56px;
+    animation:
+      var(--nav-enter) ease-out var(--nav-exit) both sb-nav-fade,
+      var(--nav-slide) ease-in-out both sb-nav-slide;
+  }
+
+  ::view-transition-old(.nav-back) {
+    --slide-offset: 56px;
+    animation:
+      var(--nav-exit) ease-in both sb-nav-fade reverse,
+      var(--nav-slide) ease-in-out both sb-nav-slide reverse;
+  }
+
+  ::view-transition-new(.nav-back) {
+    --slide-offset: -56px;
+    animation:
+      var(--nav-enter) ease-out var(--nav-exit) both sb-nav-fade,
+      var(--nav-slide) ease-in-out both sb-nav-slide;
+  }
+
+  @keyframes sb-nav-fade {
+    from {
+      opacity: 0;
+      filter: blur(2px);
+    }
+    to {
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+
+  @keyframes sb-nav-slide {
+    from {
+      translate: var(--slide-offset);
+    }
+    to {
+      translate: 0;
+    }
+  }
+
+  @keyframes sb-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Header / footer stay put as spatial anchors */
+  ::view-transition-group(site-header),
+  ::view-transition-group(site-footer) {
+    animation: none;
+    z-index: 100;
+  }
+
+  ::view-transition-old(site-header),
+  ::view-transition-old(site-footer) {
+    display: none;
+  }
+
+  ::view-transition-new(site-header),
+  ::view-transition-new(site-footer) {
+    animation: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    body {
+      transition: none;
+    }
+
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+      animation-duration: 0s !important;
+      animation-delay: 0s !important;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* License stamp — mono metadata for stock / fulfillment */
+  .stamp {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.25;
+  }
+
+  /* Shared surface for cards / buy boxes / forms */
+  .surface {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    border-radius: var(--radius-xl);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
+
+  .surface-muted {
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--sand) 35%, var(--paper));
+    border-radius: var(--radius-xl);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+  }
 }

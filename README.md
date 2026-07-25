@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stackbay — Premium Apps Store
 
-## Getting Started
+Storefront e-commerce sederhana untuk katalog **aplikasi premium & subscription** (Notion, Figma, ChatGPT, Copilot, Adobe, dll.).
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router)
+- **React 19** + TypeScript
+- **Tailwind CSS 4**
+- Cart state: React Context + `localStorage` (client-side)
+
+## Fitur
+
+- Beranda editorial + kategori + pilihan editor
+- Katalog dengan filter kategori & pencarian
+- Detail produk (harga IDR, billing, fitur, status stok)
+- Keranjang + checkout demo (validasi form, tanpa payment gateway)
+- Halaman cara kerja & FAQ
+- UI bahasa Indonesia, a11y dasar (label, focus, reduced motion)
+
+## Menjalankan
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd premium-apps-store
+bun install   # atau npm install
+bun dev       # atau npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Struktur
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+  app/           # routes (page, layout)
+  components/    # UI + cart/checkout
+  lib/           # products data, cart context, format
+  types/         # Product types
+```
 
-## Learn More
+## Catatan
 
-To learn more about Next.js, take a look at the following resources:
+Ini **demo storefront**. Bukan toko resmi vendor. Untuk produksi: hubungkan payment gateway, CMS/DB, auth, dan pastikan model lisensi legal.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Command     | Deskripsi        |
+|-------------|------------------|
+| `bun dev`   | Development      |
+| `bun build` | Production build |
+| `bun start` | Serve build      |
+| `bun lint`  | ESLint           |
