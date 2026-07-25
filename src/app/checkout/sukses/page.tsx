@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import QRCode from "qrcode";
 import { generateDynamicQris } from "@/lib/qris";
 import { formatIDR } from "@/lib/format";
 import { db } from "@/db";
@@ -39,10 +40,21 @@ export default async function SuksesPage({
 
   const totalAmount = orderData?.totalIDR || 20000;
   const dynamicQrisString = generateDynamicQris(defaultQrisStatic, totalAmount);
-  // Generate QR Code image via free QR Server API
-  const qrisImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    dynamicQrisString
-  )}`;
+  
+  // Generate local QR Code Data URL server-side (no external API needed)
+  let qrisImageUrl = "";
+  try {
+    qrisImageUrl = await QRCode.toDataURL(dynamicQrisString, {
+      width: 260,
+      margin: 1,
+      color: {
+        dark: "#1c1917",
+        light: "#ffffff",
+      },
+    });
+  } catch (e) {
+    console.error("QR Code generation error:", e);
+  }
 
   return (
     <div className="mx-auto max-w-xl px-4 py-12 sm:py-16">
@@ -70,14 +82,16 @@ export default async function SuksesPage({
           {paymentMethod === "qris" && (
             <div className="rounded-lg border border-line bg-sand/30 p-5 text-center">
               <p className="stamp text-ink/40">SCAN QRIS DINAMIS</p>
-              <div className="mt-3 inline-block rounded-lg border border-line bg-white p-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={qrisImageUrl}
-                  alt="QRIS Pembayaran"
-                  className="h-56 w-56 mx-auto"
-                />
-              </div>
+              {qrisImageUrl && (
+                <div className="mt-3 inline-block rounded-lg border border-line bg-white p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={qrisImageUrl}
+                    alt="QRIS Pembayaran"
+                    className="h-56 w-56 mx-auto"
+                  />
+                </div>
+              )}
               <p className="mt-2 text-xs text-ink/60">
                 Scan menggunakan BCA, Mandiri, GoPay, OVO, Dana, atau m-Banking apapun.
                 Nominal <strong>{formatIDR(totalAmount)}</strong> akan terisi otomatis.

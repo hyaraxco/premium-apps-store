@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { id } = await params;
   return {
     title: `Status Order ${id}`,
-    description: `Tracking status pesanan ${id} di Stackbay.`,
+    description: `Tracking status pesanan ${id} di Hyarax Apps.`,
   };
 }
 
@@ -56,11 +56,16 @@ export default async function OrderStatusPage({
     }
   }
 
-  // Mock fallback if DB query returned nothing
+  // Strict check: If DB URL is set and no order found, return 404
+  if (process.env.DATABASE_URL && !order) {
+    notFound();
+  }
+
+  // Development / Mock fallback if DB URL is absent
   if (!order) {
     order = {
       id: orderId,
-      buyerName: "Pelanggan Stackbay",
+      buyerName: "Pelanggan Hyarax Apps",
       buyerEmail: "pelanggan@example.com",
       paymentMethod: "qris",
       totalIDR: 20000,

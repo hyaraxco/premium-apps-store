@@ -5,8 +5,14 @@ import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { sendFulfillmentEmail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
+import { verifyAdminSession } from "@/lib/admin-auth";
 
 export async function updateOrderStatusAction(orderId: string, newStatus: string) {
+  const isAuthed = await verifyAdminSession();
+  if (!isAuthed) {
+    throw new Error("Unauthorized: Admin session required.");
+  }
+
   if (process.env.DATABASE_URL) {
     try {
       await db
@@ -22,6 +28,11 @@ export async function updateOrderStatusAction(orderId: string, newStatus: string
 }
 
 export async function submitFulfillmentAction(formData: FormData) {
+  const isAuthed = await verifyAdminSession();
+  if (!isAuthed) {
+    throw new Error("Unauthorized: Admin session required.");
+  }
+
   const orderId = String(formData.get("orderId") ?? "");
   const fulfillmentType = String(formData.get("type") ?? "invite");
   const inviteLink = String(formData.get("inviteLink") ?? "").trim();

@@ -5,7 +5,6 @@ import * as schema from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { products as fallbackProducts } from "@/lib/products";
-
 import { checkRateLimit } from "@/lib/rate-limit";
 
 function generateOrderId(): string {
@@ -44,13 +43,19 @@ export async function createOrderAction(input: CheckoutInput) {
     return { success: false, error: "Keranjang belanja kosong." };
   }
 
+  // Validate quantities & months
+  for (const item of input.items) {
+    if (item.quantity <= 0 || (item.months && item.months <= 0)) {
+      return { success: false, error: "Jumlah kuantitas atau bulan tidak valid." };
+    }
+  }
+
   const orderId = generateOrderId();
   let totalIDR = 0;
   const orderItemsData: (typeof schema.orderItems.$inferInsert)[] = [];
   const emailItems: { productName: string; variantLabel: string; qty: number; subtotalIDR: number }[] = [];
 
   try {
-    // Process if DB connected
     if (process.env.DATABASE_URL) {
       for (const item of input.items) {
         const rawProducts = await db
@@ -66,11 +71,16 @@ export async function createOrderAction(input: CheckoutInput) {
           .limit(1);
 
         if (rawProducts.length === 0 || rawVariants.length === 0) {
-          return { success: false, error: `Produk atau Varian ${item.productId} tidak ditemukan.` };
+          return { success: false, error: `Produk atau Varian tidak ditemukan.` };
         }
 
         const p = rawProducts[0];
         const v = rawVariants[0];
+
+        // Security check: verify variant belongs to product
+        if (v.productId !== p.id) {
+          return { success: false, error: "Varian tidak sesuai dengan produk." };
+        }
 
         if (v.stock < item.quantity) {
           return {
@@ -123,7 +133,7 @@ export async function createOrderAction(input: CheckoutInput) {
         await db
           .update(schema.productVariants)
           .set({
-            stock: sql`${schema.productVariants.stock} - ${itemData.qty}`,
+            stock: sql`GREATEST(0, ${schema.productVariants.stock} - ${itemData.qty})`,
           })
           .where(eq(schema.productVariants.id, itemData.variantId));
       }
