@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getProductsFromDb } from "@/db/queries";
 import { formatIDR } from "@/lib/format";
-import { toggleProductActiveAction, updateVariantStockAction } from "./actions";
+import { toggleProductActiveAction, updatePoolStockAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Admin Produk & Stok",
@@ -63,45 +63,45 @@ export default async function AdminProdukPage() {
                     {formatIDR(p.minPriceIDR)}
                   </td>
                   <td className="px-4 py-3.5 space-y-1">
-                    {p.variants.map((v) => (
-                      <div key={v.id} className="flex items-center gap-2 text-xs">
-                        <span className="font-medium text-ink/75">{v.label}:</span>
-                        <span className="font-semibold tabular-nums text-ink">
-                          {v.stock} unit
-                        </span>
-                        <form
-                          action={async (formData) => {
-                            "use server";
-                            const stock = parseInt(String(formData.get("stock") ?? "0"), 10);
-                            await updateVariantStockAction(v.id, stock);
-                          }}
-                          className="inline-flex items-center gap-1"
-                        >
-                          <input
-                            type="number"
-                            name="stock"
-                            defaultValue={v.stock}
-                            className="w-14 rounded border border-line px-1.5 py-0.5 text-xs text-ink"
-                          />
-                          <button
-                            type="submit"
-                            className="rounded bg-ink px-1.5 py-0.5 text-[10px] text-paper font-semibold hover:bg-ink/90"
-                          >
-                            Set
-                          </button>
-                        </form>
-                      </div>
-                    ))}
+                    <form
+                      action={async (formData) => {
+                        "use server";
+                        const stock = parseInt(String(formData.get("stock") ?? "0"), 10);
+                        await updatePoolStockAction(p.id, stock);
+                      }}
+                      className="inline-flex items-center gap-2"
+                    >
+                      <span className="font-medium text-ink/75">Pool Stok:</span>
+                      <input
+                        type="number"
+                        name="stock"
+                        defaultValue={p.totalStock}
+                        className="w-16 rounded border border-line px-2 py-1 text-xs text-ink"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded bg-ink px-2 py-1 text-[11px] text-paper font-semibold hover:bg-ink/90"
+                      >
+                        Set
+                      </button>
+                    </form>
+                    <div className="mt-2 text-[11px] text-ink/50 space-y-0.5 border-l-2 border-line/60 pl-2">
+                      {p.variants.map((v) => (
+                        <div key={v.id}>
+                          • {v.label}
+                        </div>
+                      ))}
+                    </div>
                   </td>
                   <td className="px-4 py-3.5">
                     <span
                       className={`stamp rounded px-2 py-0.5 text-[11px] ${
                         p.totalStock > 0
-                          ? "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200"
+                          ? "bg-sand text-ink"
                           : "bg-rose-500/15 text-rose-900 dark:text-rose-200"
                       }`}
                     >
-                      {p.totalStock > 0 ? `Stok ${p.totalStock}` : "Habis"}
+                      {p.totalStock > 0 ? `Tersedia` : "Habis"}
                     </span>
                   </td>
                   <td className="px-4 py-3.5 text-right">

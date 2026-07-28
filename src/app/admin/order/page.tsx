@@ -116,12 +116,12 @@ export default async function AdminOrdersPage({
             <tbody className="divide-y divide-line">
               {orderList.map((ord) => {
                 const statusKey = ord.paymentStatus || ord.status;
-                const statusBadge = {
-                  pending: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
-                  paid: "bg-blue-500/15 text-blue-900 dark:text-blue-200",
-                  fulfilled: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200",
+                const badgeColor = {
+                  pending: "bg-sand text-ink/70",
+                  paid: "bg-sand text-ink",
+                  fulfilled: "bg-sand text-ink",
                   failed: "bg-rose-500/15 text-rose-900 dark:text-rose-200",
-                  cancelled: "bg-sand text-ink/70",
+                  cancelled: "bg-sand text-ink/50",
                 }[statusKey] || "bg-sand text-ink";
 
                 return (
@@ -142,7 +142,7 @@ export default async function AdminOrdersPage({
                       {formatIDR(ord.totalIDR)}
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className={`stamp rounded px-2 py-0.5 text-[11px] ${statusBadge}`}>
+                      <span className={`stamp rounded border border-line px-2 py-0.5 text-[11px] ${badgeColor}`}>
                         {ord.paymentStatus || ord.status}
                       </span>
                     </td>

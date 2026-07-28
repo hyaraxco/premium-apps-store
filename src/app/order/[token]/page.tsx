@@ -91,30 +91,12 @@ export default async function OrderStatusPage({
 
   const statusKey = order.paymentStatus || order.status;
   const statusBadge = {
-    pending: {
-      label: "Menunggu Pembayaran",
-      color: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
-    },
-    paid: {
-      label: "Pembayaran Diverifikasi",
-      color: "bg-blue-500/15 text-blue-900 dark:text-blue-200",
-    },
-    fulfilled: {
-      label: "Pesanan Selesai",
-      color: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200",
-    },
-    failed: {
-      label: "Gagal",
-      color: "bg-rose-500/15 text-rose-900 dark:text-rose-200",
-    },
-    cancelled: {
-      label: "Dibatalkan / Expired",
-      color: "bg-sand text-ink/70",
-    },
-    refunded: {
-      label: "Refund",
-      color: "bg-sand text-ink/70",
-    },
+    pending: { label: "Menunggu Pembayaran", color: "bg-sand text-ink" },
+    paid: { label: "Pembayaran Diverifikasi", color: "bg-sand text-ink" },
+    fulfilled: { label: "Pesanan Selesai", color: "bg-sand text-ink" },
+    failed: { label: "Gagal", color: "bg-rose-500/15 text-rose-900 dark:text-rose-200" },
+    cancelled: { label: "Dibatalkan / Expired", color: "bg-sand text-ink/50" },
+    refunded: { label: "Refund", color: "bg-sand text-ink/50" },
   }[statusKey] || { label: statusKey, color: "bg-sand text-ink" };
 
   const expiresAt = order.paymentExpiresAt

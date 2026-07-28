@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/admin-auth";
 
-export async function updateVariantStockAction(variantId: string, newStock: number) {
+export async function updatePoolStockAction(productId: string, newStock: number) {
   const isAuthed = await verifyAdminSession();
   if (!isAuthed) {
     throw new Error("Unauthorized: Admin session required.");
@@ -15,11 +15,11 @@ export async function updateVariantStockAction(variantId: string, newStock: numb
   if (process.env.DATABASE_URL) {
     try {
       await db
-        .update(schema.productVariants)
-        .set({ stock: Math.max(0, newStock) })
-        .where(eq(schema.productVariants.id, variantId));
+        .update(schema.inventoryPools)
+        .set({ availableStock: Math.max(0, newStock), updatedAt: new Date() })
+        .where(eq(schema.inventoryPools.productId, productId));
     } catch (e) {
-      console.error("Update stock error:", e);
+      console.error("Update pool stock error:", e);
     }
   }
   revalidatePath("/admin/produk");

@@ -83,9 +83,9 @@ export default async function AdminOrderDetailPage({
               <div>
                 <p className="stamp text-ink/40">Status Pembayaran</p>
                 <h2 className="text-lg font-semibold uppercase text-ink">
-                  {order.paymentStatus}
+                  {order.paymentStatus || order.status}
                   <span className="ml-2 text-xs font-normal normal-case text-ink/50">
-                    fulfill: {order.fulfillmentStatus}
+                    <span className="stamp px-1.5 py-0.5 rounded border border-line bg-paper">fulfill: {order.fulfillmentStatus}</span>
                   </span>
                 </h2>
               </div>

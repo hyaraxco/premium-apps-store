@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Bantuan",
-  description: "FAQ dan kontak support Stackbay.",
+  description: "FAQ dan kontak support Hyarax Apps.",
 };
 
 const faqs = [
   {
     q: "Apakah ini toko resmi Notion / Figma / OpenAI?",
-    a: "Tidak. Stackbay adalah demo storefront reseller-style. Di produksi, pastikan model bisnis & ToS vendor Anda legal sebelum menjual ulang.",
+    a: "Tidak. Hyarax Apps adalah demo storefront reseller-style. Di produksi, pastikan model bisnis & ToS vendor Anda legal sebelum menjual ulang.",
   },
   {
     q: "Berapa lama aktivasi?",

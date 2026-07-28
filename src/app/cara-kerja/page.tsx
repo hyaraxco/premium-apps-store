@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Cara kerja",
-  description: "Bagaimana Stackbay menjual dan mengaktifkan lisensi digital.",
+  description: "Bagaimana Hyarax Apps menjual dan mengaktifkan lisensi digital.",
 };
 
 const steps = [
@@ -34,7 +34,7 @@ export default function HowItWorksPage() {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <p className="stamp text-ink/45">Proses</p>
       <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-ink">
-        Cara kerja Stackbay
+        Cara kerja Hyarax Apps
       </h1>
       <p className="mt-3 text-base leading-relaxed text-ink/65">
         Kami fokusasi katalog lisensi premium &amp; subscription. Bukan app
