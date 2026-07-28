@@ -39,7 +39,7 @@ export async function createOrderAction(
   input: CheckoutInput,
 ): Promise<CreateOrderResult> {
   const emailKey = input.buyerEmail.trim().toLowerCase();
-  const limitCheck = checkRateLimit(emailKey);
+  const limitCheck = await checkRateLimit(emailKey);
   if (!limitCheck.allowed) {
     return {
       success: false,
