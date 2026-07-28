@@ -275,6 +275,7 @@ export async function createOrderAction(
       totalIDR: result.totalIDR,
       paymentMethod: input.paymentMethod,
       items: result.emailItems,
+      publicToken: result.publicToken,
     }).catch((e) => console.error("order confirmation email failed", e));
 
     return {

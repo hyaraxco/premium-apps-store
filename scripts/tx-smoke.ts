@@ -8,8 +8,21 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
 async function main() {
-  if (!process.env.DATABASE_URL) {
-    console.log("SKIP: DATABASE_URL not set — cannot run live tx smoke");
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url || url.includes("USER:PASSWORD") || url.includes("ep-sample") || url.includes("ep-XXXX")) {
+    console.log(`
+SKIP: real DATABASE_URL not set in .env.local
+
+Get URI from https://console.neon.tech → Connection string
+Then:
+
+  # edit .env.local
+  DATABASE_URL=postgresql://...@ep-....neon.tech/neondb?sslmode=require
+
+  npm run db:migrate
+  npm run db:seed
+  npm run check:tx
+`);
     process.exit(0);
   }
 

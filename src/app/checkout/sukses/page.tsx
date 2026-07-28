@@ -8,8 +8,8 @@ import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
 
 export const metadata: Metadata = {
-  title: "Order Berhasil",
-  description: "Instruksi pembayaran dan detail order.",
+  title: "Order Dibuat — Menunggu Pembayaran",
+  description: "Instruksi pembayaran dan lacak status pesanan.",
 };
 
 const defaultQrisStatic =
@@ -18,9 +18,9 @@ const defaultQrisStatic =
 export default async function SuksesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ order?: string; method?: string }>;
+  searchParams: Promise<{ order?: string; method?: string; token?: string }>;
 }) {
-  const { order: orderId, method } = await searchParams;
+  const { order: orderId, method, token: publicToken } = await searchParams;
   if (!orderId) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-ink/60">
@@ -177,12 +177,18 @@ export default async function SuksesPage({
         </div>
 
         <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
-          <Link
-            href={`/order/${code}`}
-            className="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
-          >
-            Lacak Status Order
-          </Link>
+          {publicToken ? (
+            <Link
+              href={`/order/${encodeURIComponent(publicToken)}`}
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-ink px-5 text-sm font-medium text-paper hover:bg-ink/90"
+            >
+              Lacak Status Order
+            </Link>
+          ) : (
+            <p className="flex-1 text-center text-xs text-ink/50 self-center">
+              Link lacak dikirim ke email konfirmasi (bukan nomor order saja).
+            </p>
+          )}
           <Link
             href="/katalog"
             transitionTypes={["nav-back"]}

@@ -15,6 +15,7 @@ export async function sendOrderConfirmationEmail({
   totalIDR,
   paymentMethod,
   items,
+  publicToken,
 }: {
   orderId: string;
   buyerName: string;
@@ -22,14 +23,18 @@ export async function sendOrderConfirmationEmail({
   totalIDR: number;
   paymentMethod: string;
   items: { productName: string; variantLabel: string; qty: number; subtotalIDR: number }[];
+  /** Raw public tracking token (not order id) */
+  publicToken: string;
 }) {
   if (!resend) {
-    console.log(`[Email Mock] Order Confirmed: ${orderId} for ${buyerEmail}`);
+    console.log(
+      `[Email Mock] Order Confirmed: ${orderId} token=${publicToken.slice(0, 8)}… for ${buyerEmail}`,
+    );
     return { success: true, mock: true };
   }
 
   const methodLabel = paymentMethod.toUpperCase();
-  const orderUrl = `${appUrl}/order/${orderId}`;
+  const orderUrl = `${appUrl}/order/${encodeURIComponent(publicToken)}`;
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1c1917; padding: 20px; border: 1px solid #e7e0d6; border-radius: 8px;">
@@ -51,11 +56,11 @@ export async function sendOrderConfirmationEmail({
         <p style="margin-top: 4px; font-size: 14px; color: #78716c;">Metode: ${methodLabel}</p>
       </div>
 
-      <p>Silakan selesaikan pembayaran dan cek status pesanan Anda melalui tautan di bawah ini:</p>
+      <p>Silakan selesaikan pembayaran dan cek status pesanan Anda melalui tautan di bawah ini (simpan link ini — tidak memakai nomor order saja):</p>
       <p><a href="${orderUrl}" style="display: inline-block; background-color: #1c1917; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-weight: 500;">Cek Status Pesanan</a></p>
 
       <hr style="border: none; border-top: 1px solid #e7e0d6; margin: 24px 0;" />
-      <p style="font-size: 12px; color: #78716c;">Stackbay Digital Storefront · Support 09–21 WIB</p>
+      <p style="font-size: 12px; color: #78716c;">Premium Apps by Hyarax · Support 09–21 WIB</p>
     </div>
   `;
 
@@ -97,7 +102,6 @@ export async function sendFulfillmentEmail({
     return { success: true, mock: true };
   }
 
-  const orderUrl = `${appUrl}/order/${orderId}`;
   let accessHtml = "";
 
   if (fulfillmentType === "invite" && inviteLink) {
@@ -127,8 +131,8 @@ export async function sendFulfillmentEmail({
       ${notes ? `<p style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 12px; border-radius: 6px; font-size: 13px;"><strong>Catatan Tambahan:</strong> ${notes}</p>` : ""}
 
       <hr style="border: none; border-top: 1px solid #e7e0d6; margin: 24px 0;" />
-      <p style="font-size: 13px;">Jika butuh bantuan atau klaim garansi, silakan hubungi customer support melalui tombol WhatsApp di web atau halaman status order Anda: <a href="${orderUrl}">${orderUrl}</a></p>
-      <p style="font-size: 12px; color: #78716c;">Stackbay Digital Storefront</p>
+      <p style="font-size: 13px;">Simpan email ini. Status pesanan (tanpa password) memakai tautan rahasia di email konfirmasi order sebelumnya. Bantuan: tombol WhatsApp di ${appUrl}.</p>
+      <p style="font-size: 12px; color: #78716c;">Premium Apps by Hyarax</p>
     </div>
   `;
 

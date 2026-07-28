@@ -1,23 +1,49 @@
 /**
  * Catalog seed — idempotent upserts.
- * Does NOT seed real bank/QRIS/WA (dev placeholders only under explicit flag).
  *
- *   DATABASE_URL=... npm run db:seed
+ *   npm run db:seed
  */
 import dotenv from "dotenv";
 dotenv.config({ path: ".env.local" });
 
 import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { eq } from "drizzle-orm";
+import { drizzle as drizzleHttp } from "drizzle-orm/neon-http";
+import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "./schema";
 
-if (!process.env.DATABASE_URL) {
-  console.error("DATABASE_URL required for seed");
+const _url = process.env.DATABASE_URL?.trim() || "";
+if (
+  !_url ||
+  _url.includes("USER:PASSWORD") ||
+  _url.includes("ep-sample") ||
+  _url.includes("ep-XXXX")
+) {
+  console.error(`
+DATABASE_URL missing or still a placeholder in .env.local
+
+Local quick start (Homebrew Postgres):
+  brew services start postgresql@16
+  createdb hyarax_apps
+  DATABASE_URL=postgresql://$(whoami)@localhost:5432/hyarax_apps
+
+Or Neon: https://console.neon.tech → Connection string
+`);
   process.exit(1);
 }
 
-const db = drizzle(neon(process.env.DATABASE_URL), { schema });
+function isNeonUrl(url: string): boolean {
+  return /neon\.tech/i.test(url) || /neon\.database/i.test(url);
+}
+
+function createSeedDb() {
+  if (isNeonUrl(_url)) {
+    return drizzleHttp(neon(_url), { schema });
+  }
+  return drizzlePg(new pg.Pool({ connectionString: _url }), { schema });
+}
+
+const db = createSeedDb();
 
 /** Canonical pool stock per product (NOT sum of variants). */
 const POOL_STOCK: Record<string, number> = {
@@ -203,7 +229,6 @@ const seedVariants: V[] = [
   { id: "alight-12m", productId: "alight-motion", label: "12 Bulan", durationMonths: 12, priceIDR: 10000, isPromo: false, sortOrder: 1 },
 ];
 
-/** Dev-only placeholders — never real production accounts */
 const seedSettingsDev = [
   { key: "bca_name", value: "DEV PLACEHOLDER" },
   { key: "bca_number", value: "0000000000" },
@@ -274,7 +299,7 @@ async function runSeed() {
         priceMonthlyIDR: v.priceMonthlyIDR ?? null,
         priceIDR: v.priceIDR,
         isPromo: v.isPromo,
-        stock: poolStock, // legacy mirror during expand
+        stock: poolStock,
         isActive: true,
         sortOrder: v.sortOrder,
       })
@@ -307,6 +332,7 @@ async function runSeed() {
 
   const count = await db.select({ id: schema.products.id }).from(schema.products);
   console.log(`Seed OK: ${count.length} products, pools linked.`);
+  process.exit(0);
 }
 
 runSeed().catch((e) => {

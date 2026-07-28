@@ -5,6 +5,7 @@ import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { formatIDR } from "@/lib/format";
+import { hashPublicOrderToken } from "@/lib/order-token";
 
 export async function generateMetadata({
   params,
@@ -13,19 +14,40 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   return {
-    title: `Status Order ${id}`,
-    description: `Tracking status pesanan ${id} di Hyarax Apps.`,
+    title: "Status Pesanan",
+    description: "Lacak status pesanan Hyarax Apps (tanpa menampilkan akses lisensi).",
+    robots: { index: false, follow: false },
   };
 }
 
+function maskEmail(email: string): string {
+  const [user, domain] = email.split("@");
+  if (!domain || !user) return "•••";
+  const head = user.slice(0, 1);
+  return `${head}•••@${domain}`;
+}
+
+/**
+ * Public tracking by unguessable token (param name stays [id] for routing).
+ * Lookup: SHA-256(token) === orders.public_token_hash
+ * Never shows invite links or credentials — those are email-only.
+ */
 export default async function OrderStatusPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id: orderId } = await params;
+  const { id: publicToken } = await params;
 
-  // Best-effort: release stock for any unpaid orders past TTL
+  if (!publicToken || publicToken.length < 16) {
+    notFound();
+  }
+
+  // Reject guessable order-id style access on public route
+  if (publicToken.startsWith("SB-")) {
+    notFound();
+  }
+
   if (process.env.DATABASE_URL) {
     try {
       const { expireUnpaidOrders } = await import("@/lib/orders/expire");
@@ -35,35 +57,31 @@ export default async function OrderStatusPage({
     }
   }
 
-  let order = null;
+  if (!process.env.DATABASE_URL) {
+    notFound();
+  }
+
+  const tokenHash = hashPublicOrderToken(publicToken);
+
+  let order: typeof schema.orders.$inferSelect | null = null;
   let items: (typeof schema.orderItems.$inferSelect)[] = [];
-  let fulfillment: (typeof schema.orderFulfillments.$inferSelect) | null = null;
 
-  if (process.env.DATABASE_URL) {
-    try {
-      const res = await db
+  try {
+    const res = await db
+      .select()
+      .from(schema.orders)
+      .where(eq(schema.orders.publicTokenHash, tokenHash))
+      .limit(1);
+
+    if (res[0]) {
+      order = res[0];
+      items = await db
         .select()
-        .from(schema.orders)
-        .where(eq(schema.orders.id, orderId))
-        .limit(1);
-
-      if (res.length > 0) {
-        order = res[0];
-        items = await db
-          .select()
-          .from(schema.orderItems)
-          .where(eq(schema.orderItems.orderId, orderId));
-
-        const ful = await db
-          .select()
-          .from(schema.orderFulfillments)
-          .where(eq(schema.orderFulfillments.orderId, orderId))
-          .limit(1);
-        if (ful.length > 0) fulfillment = ful[0];
-      }
-    } catch {
-      // ignore
+        .from(schema.orderItems)
+        .where(eq(schema.orderItems.orderId, order.id));
     }
+  } catch (e) {
+    console.error("order track lookup", e);
   }
 
   if (!order) {
@@ -72,83 +90,107 @@ export default async function OrderStatusPage({
 
   const statusKey = order.paymentStatus || order.status;
   const statusBadge = {
-    pending: { label: "Menunggu Pembayaran", color: "bg-amber-500/15 text-amber-900 dark:text-amber-200" },
-    paid: { label: "Pembayaran Diverifikasi", color: "bg-blue-500/15 text-blue-900 dark:text-blue-200" },
-    fulfilled: { label: "Pesanan Selesai (Aktif)", color: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200" },
-    failed: { label: "Gagal / Batal", color: "bg-rose-500/15 text-rose-900 dark:text-rose-200" },
-    cancelled: { label: "Dibatalkan / Expired", color: "bg-sand text-ink/70" },
+    pending: {
+      label: "Menunggu Pembayaran",
+      color: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
+    },
+    paid: {
+      label: "Pembayaran Diverifikasi",
+      color: "bg-blue-500/15 text-blue-900 dark:text-blue-200",
+    },
+    fulfilled: {
+      label: "Pesanan Selesai",
+      color: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200",
+    },
+    failed: {
+      label: "Gagal",
+      color: "bg-rose-500/15 text-rose-900 dark:text-rose-200",
+    },
+    cancelled: {
+      label: "Dibatalkan / Expired",
+      color: "bg-sand text-ink/70",
+    },
+    refunded: {
+      label: "Refund",
+      color: "bg-sand text-ink/70",
+    },
   }[statusKey] || { label: statusKey, color: "bg-sand text-ink" };
+
+  const expiresAt = order.paymentExpiresAt
+    ? new Date(order.paymentExpiresAt)
+    : null;
+  const pending = statusKey === "pending";
+  const expired =
+    pending && expiresAt != null && expiresAt.getTime() < Date.now();
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
-      <div className="surface p-6 sm:p-8 space-y-6">
+      <div className="surface space-y-6 p-6 sm:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
           <div>
             <span className="stamp text-ink/40">STATUS PESANAN</span>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">
+            <h1 className="mt-1 font-mono text-lg font-semibold tracking-tight text-ink sm:text-xl">
               {order.id}
             </h1>
           </div>
-          <span className={`stamp rounded px-2.5 py-1 font-medium ${statusBadge.color}`}>
-            {statusBadge.label}
+          <span
+            className={`stamp rounded px-2.5 py-1 font-medium ${statusBadge.color}`}
+          >
+            {expired ? "Expired / Dibatalkan" : statusBadge.label}
           </span>
         </div>
 
-        {/* Buyer & Order Details */}
-        <div className="grid gap-4 sm:grid-cols-2 text-sm">
+        <div className="grid gap-4 text-sm sm:grid-cols-2">
           <div className="surface-muted p-3.5">
             <p className="stamp text-ink/40">Pembeli</p>
             <p className="mt-1 font-medium text-ink">{order.buyerName}</p>
-            <p className="text-xs text-ink/60">{order.buyerEmail}</p>
+            <p className="text-xs text-ink/60">{maskEmail(order.buyerEmail)}</p>
           </div>
           <div className="surface-muted p-3.5">
             <p className="stamp text-ink/40">Metode &amp; Total</p>
-            <p className="mt-1 font-medium text-ink uppercase">
+            <p className="mt-1 font-medium uppercase text-ink">
               {order.paymentMethod} — {formatIDR(order.totalIDR)}
             </p>
             <p className="text-xs text-ink/60">
               Dibuat: {new Date(order.createdAt).toLocaleString("id-ID")}
             </p>
+            {pending && expiresAt && !expired && (
+              <p className="mt-1 text-xs font-medium text-amber-800 dark:text-amber-200">
+                Bayar sebelum: {expiresAt.toLocaleString("id-ID")}
+              </p>
+            )}
           </div>
         </div>
 
-        {/* Fulfillment Delivery Card if Fulfilled */}
-        {fulfillment && (
-          <div className="rounded-lg border border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 p-4 space-y-2">
-            <h3 className="stamp text-emerald-900 dark:text-emerald-300 font-semibold">
-              Akses Lisensi Anda (Selesai)
-            </h3>
-            {fulfillment.type === "invite" && fulfillment.inviteLink && (
-              <div>
-                <p className="text-sm text-ink/80">Silakan klik tautan invite berikut:</p>
-                <a
-                  href={fulfillment.inviteLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-2 inline-block rounded bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
-                >
-                  Buka Invite Link
-                </a>
-              </div>
-            )}
-            {fulfillment.type === "credential" && (
-              <div className="font-mono text-sm space-y-1 bg-paper p-3 rounded border border-line">
-                <p><strong>Username:</strong> {fulfillment.username}</p>
-                <p><strong>Password:</strong> {fulfillment.password}</p>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="rounded-lg border border-line bg-sand/30 px-3.5 py-3 text-xs leading-relaxed text-ink/65">
+          <p className="stamp text-ink/40">Aktivasi lisensi</p>
+          <p className="mt-1">
+            Invite link / username &amp; password dikirim ke email Anda setelah
+            pembayaran diverifikasi — tidak ditampilkan di halaman ini demi
+            keamanan.
+          </p>
+          {(order.fulfillmentStatus === "fulfilled" ||
+            order.fulfillmentStatus === "partial") && (
+            <p className="mt-1 font-medium text-ink/80">
+              Status aktivasi: {order.fulfillmentStatus}. Cek inbox email
+              (termasuk spam).
+            </p>
+          )}
+        </div>
 
-        {/* Order Items List */}
         <div>
-          <h3 className="stamp text-ink/45 mb-2">Item Produk</h3>
-          <ul className="divide-y divide-line border border-line bg-paper rounded-lg">
+          <h3 className="stamp mb-2 text-ink/45">Item Produk</h3>
+          <ul className="divide-y divide-line rounded-lg border border-line bg-paper">
             {items.map((i) => (
-              <li key={i.id} className="flex justify-between items-center p-3 text-sm">
+              <li
+                key={i.id}
+                className="flex items-center justify-between p-3 text-sm"
+              >
                 <div>
                   <p className="font-medium text-ink">{i.productName}</p>
-                  <p className="text-xs text-ink/50">{i.variantLabel} x{i.qty}</p>
+                  <p className="text-xs text-ink/50">
+                    {i.variantLabel} ×{i.qty}
+                  </p>
                 </div>
                 <span className="font-semibold tabular-nums text-ink">
                   {formatIDR(i.subtotalIDR)}
@@ -158,7 +200,7 @@ export default async function OrderStatusPage({
           </ul>
         </div>
 
-        <div className="flex flex-col gap-2.5 sm:flex-row pt-2">
+        <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
           <Link
             href="/katalog"
             transitionTypes={["nav-back"]}
