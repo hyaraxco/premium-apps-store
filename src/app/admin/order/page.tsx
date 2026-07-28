@@ -7,7 +7,7 @@ import { formatIDR } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Admin Orders",
-  description: "Kelola pesanan pelanggan Stackbay.",
+  description: "Kelola pesanan pelanggan Hyarax Apps.",
 };
 
 export default async function AdminOrdersPage({
@@ -18,14 +18,17 @@ export default async function AdminOrdersPage({
   const { status: filterStatus } = await searchParams;
 
   let orderList: (typeof schema.orders.$inferSelect)[] = [];
+  let loadError: string | null = null;
 
-  if (process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL) {
+    loadError = "DATABASE_URL belum diset — order admin tidak tersedia.";
+  } else {
     try {
       if (filterStatus && filterStatus !== "all") {
         orderList = await db
           .select()
           .from(schema.orders)
-          .where(eq(schema.orders.status, filterStatus))
+          .where(eq(schema.orders.paymentStatus, filterStatus))
           .orderBy(desc(schema.orders.createdAt));
       } else {
         orderList = await db
@@ -33,27 +36,10 @@ export default async function AdminOrdersPage({
           .from(schema.orders)
           .orderBy(desc(schema.orders.createdAt));
       }
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error(e);
+      loadError = "Gagal memuat order dari database.";
     }
-  }
-
-  // Mock data if database empty / not connected
-  if (orderList.length === 0 && !filterStatus) {
-    orderList = [
-      {
-        id: "SB-20260725-1001",
-        buyerName: "Budi Santoso",
-        buyerEmail: "budi@example.com",
-        buyerWhatsapp: "081234567890",
-        paymentMethod: "qris",
-        totalIDR: 55000,
-        status: "pending",
-        paymentNote: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
   }
 
   return (
@@ -91,6 +77,18 @@ export default async function AdminOrdersPage({
         </div>
       </div>
 
+      {loadError && (
+        <div className="rounded-lg border border-line bg-sand/40 px-4 py-3 text-sm text-ink/70">
+          {loadError}
+        </div>
+      )}
+
+      {!loadError && orderList.length === 0 && (
+        <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-sm text-ink/60">
+          Belum ada pesanan.
+        </div>
+      )}
+
       {/* Orders Table */}
       <div className="surface overflow-hidden">
         <div className="overflow-x-auto">
@@ -108,12 +106,14 @@ export default async function AdminOrdersPage({
             </thead>
             <tbody className="divide-y divide-line">
               {orderList.map((ord) => {
+                const statusKey = ord.paymentStatus || ord.status;
                 const statusBadge = {
                   pending: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
                   paid: "bg-blue-500/15 text-blue-900 dark:text-blue-200",
                   fulfilled: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200",
                   failed: "bg-rose-500/15 text-rose-900 dark:text-rose-200",
-                }[ord.status] || "bg-sand text-ink";
+                  cancelled: "bg-sand text-ink/70",
+                }[statusKey] || "bg-sand text-ink";
 
                 return (
                   <tr key={ord.id} className="hover:bg-sand/20 transition">
@@ -134,7 +134,7 @@ export default async function AdminOrdersPage({
                     </td>
                     <td className="px-4 py-3.5">
                       <span className={`stamp rounded px-2 py-0.5 text-[11px] ${statusBadge}`}>
-                        {ord.status}
+                        {ord.paymentStatus || ord.status}
                       </span>
                     </td>
                     <td className="px-4 py-3.5 text-xs text-ink/50">

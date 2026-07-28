@@ -2,12 +2,18 @@ import "server-only";
 import { db } from "./index";
 import * as schema from "./schema";
 import { eq, asc } from "drizzle-orm";
-import type { Product, ProductStatus, ProductCategory, FulfillmentType } from "@/types/product";
+import type {
+  Product,
+  ProductStatus,
+  ProductCategory,
+  FulfillmentType,
+} from "@/types/product";
 import { products as fallbackProducts } from "@/lib/products";
 
 function mapDbProduct(
   p: typeof schema.products.$inferSelect,
-  vList: (typeof schema.productVariants.$inferSelect)[]
+  vList: (typeof schema.productVariants.$inferSelect)[],
+  poolStock: number,
 ): Product {
   const activeVariants = vList
     .filter((v) => v.isActive)
@@ -15,14 +21,12 @@ function mapDbProduct(
 
   const prices = activeVariants.map((v) => v.priceIDR);
   const minPrice = prices.length > 0 ? Math.min(...prices) : 0;
-  const totalStock = activeVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+  // Shared pool — do NOT sum variant.stock
+  const totalStock = Math.max(0, poolStock);
 
   let status: ProductStatus = "available";
-  if (totalStock === 0) {
-    status = "out_of_stock";
-  } else if (totalStock <= 5) {
-    status = "limited";
-  }
+  if (totalStock === 0) status = "out_of_stock";
+  else if (totalStock <= 5) status = "limited";
 
   const delivery =
     p.fulfillmentType === "invite"
@@ -59,7 +63,7 @@ function mapDbProduct(
       priceMonthlyIDR: v.priceMonthlyIDR,
       priceIDR: v.priceIDR,
       isPromo: v.isPromo,
-      stock: v.stock,
+      stock: totalStock, // display pool stock on each variant for UI
       isActive: v.isActive,
       sortOrder: v.sortOrder,
     })),
@@ -83,8 +87,9 @@ export async function getProductsFromDb(): Promise<Product[]> {
       .where(eq(schema.products.isActive, true))
       .orderBy(asc(schema.products.sortOrder));
 
-    if (!rawProducts || rawProducts.length === 0) {
-      return fallbackProducts;
+    if (!rawProducts.length) {
+      // Honest empty — no silent demo catalog in production
+      return [];
     }
 
     const rawVariants = await db
@@ -93,17 +98,29 @@ export async function getProductsFromDb(): Promise<Product[]> {
       .where(eq(schema.productVariants.isActive, true))
       .orderBy(asc(schema.productVariants.sortOrder));
 
+    const pools = await db.select().from(schema.inventoryPools);
+    const stockByProduct = new Map(
+      pools.map((p) => [p.productId, p.availableStock] as const),
+    );
+
     return rawProducts.map((p) => {
       const vList = rawVariants.filter((v) => v.productId === p.id);
-      return mapDbProduct(p, vList);
+      const poolStock =
+        stockByProduct.get(p.id) ??
+        // expand-phase fallback: max variant stock if pool missing
+        Math.max(0, ...vList.map((v) => v.stock), 0);
+      return mapDbProduct(p, vList, poolStock);
     });
   } catch (error) {
-    console.error("DB Query error, fallback to static mock:", error);
-    return fallbackProducts;
+    console.error("DB Query error:", error);
+    // Fail closed when DB configured — do not serve stale mock inventory
+    throw error;
   }
 }
 
-export async function getProductBySlugFromDb(slug: string): Promise<Product | null> {
+export async function getProductBySlugFromDb(
+  slug: string,
+): Promise<Product | null> {
   if (!process.env.DATABASE_URL) {
     return fallbackProducts.find((p) => p.slug === slug) || null;
   }
@@ -114,27 +131,37 @@ export async function getProductBySlugFromDb(slug: string): Promise<Product | nu
       .where(eq(schema.products.slug, slug))
       .limit(1);
 
-    if (rawProducts.length === 0) {
-      return fallbackProducts.find((p) => p.slug === slug) || null;
-    }
+    if (rawProducts.length === 0) return null;
 
     const p = rawProducts[0];
+    if (!p.isActive) return null;
+
     const rawVariants = await db
       .select()
       .from(schema.productVariants)
       .where(eq(schema.productVariants.productId, p.id))
       .orderBy(asc(schema.productVariants.sortOrder));
 
-    return mapDbProduct(p, rawVariants);
+    const pools = await db
+      .select()
+      .from(schema.inventoryPools)
+      .where(eq(schema.inventoryPools.productId, p.id))
+      .limit(1);
+
+    const poolStock =
+      pools[0]?.availableStock ??
+      Math.max(0, ...rawVariants.map((v) => v.stock), 0);
+
+    return mapDbProduct(p, rawVariants, poolStock);
   } catch (error) {
     console.error("DB Query error for slug:", slug, error);
-    return fallbackProducts.find((p) => p.slug === slug) || null;
+    throw error;
   }
 }
 
 export async function getRelatedProductsFromDb(
   product: Product,
-  limit = 3
+  limit = 3,
 ): Promise<Product[]> {
   const all = await getProductsFromDb();
   return all

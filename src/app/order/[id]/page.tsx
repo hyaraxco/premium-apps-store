@@ -56,44 +56,18 @@ export default async function OrderStatusPage({
     }
   }
 
-  // Strict check: If DB URL is set and no order found, return 404
-  if (process.env.DATABASE_URL && !order) {
+  if (!order) {
     notFound();
   }
 
-  // Development / Mock fallback if DB URL is absent
-  if (!order) {
-    order = {
-      id: orderId,
-      buyerName: "Pelanggan Hyarax Apps",
-      buyerEmail: "pelanggan@example.com",
-      paymentMethod: "qris",
-      totalIDR: 20000,
-      status: "pending",
-      createdAt: new Date(),
-    };
-    items = [
-      {
-        id: "item-1",
-        orderId,
-        productId: "g1-pro-yt",
-        variantId: "g1-yt-1m",
-        productName: "Google One Pro (+YT & Music)",
-        variantLabel: "1 Bulan",
-        months: 1,
-        qty: 1,
-        unitPriceIDR: 20000,
-        subtotalIDR: 20000,
-      },
-    ];
-  }
-
+  const statusKey = order.paymentStatus || order.status;
   const statusBadge = {
     pending: { label: "Menunggu Pembayaran", color: "bg-amber-500/15 text-amber-900 dark:text-amber-200" },
     paid: { label: "Pembayaran Diverifikasi", color: "bg-blue-500/15 text-blue-900 dark:text-blue-200" },
     fulfilled: { label: "Pesanan Selesai (Aktif)", color: "bg-emerald-500/15 text-emerald-900 dark:text-emerald-200" },
     failed: { label: "Gagal / Batal", color: "bg-rose-500/15 text-rose-900 dark:text-rose-200" },
-  }[order.status] || { label: order.status, color: "bg-sand text-ink" };
+    cancelled: { label: "Dibatalkan / Expired", color: "bg-sand text-ink/70" },
+  }[statusKey] || { label: statusKey, color: "bg-sand text-ink" };
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">

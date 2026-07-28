@@ -21,11 +21,17 @@ export default async function SuksesPage({
   searchParams: Promise<{ order?: string; method?: string }>;
 }) {
   const { order: orderId, method } = await searchParams;
-  const code = orderId || "SB-20260725-1001";
-  const paymentMethod = method || "qris";
+  if (!orderId) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-ink/60">
+        Order tidak ditemukan. Selesaikan checkout dulu.
+      </div>
+    );
+  }
 
-  let orderData = null;
-  if (process.env.DATABASE_URL && orderId) {
+  const code = orderId;
+  let orderData: typeof schema.orders.$inferSelect | null = null;
+  if (process.env.DATABASE_URL) {
     try {
       const found = await db
         .select()
@@ -38,22 +44,38 @@ export default async function SuksesPage({
     }
   }
 
-  const totalAmount = orderData?.totalIDR || 20000;
-  const dynamicQrisString = generateDynamicQris(defaultQrisStatic, totalAmount);
+  if (process.env.DATABASE_URL && !orderData) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-ink/60">
+        Order <span className="font-mono">{code}</span> tidak ditemukan.
+      </div>
+    );
+  }
+
+  const paymentMethod =
+    (orderData?.paymentMethod as string) || method || "qris";
+  // Without DB, cannot invent amount — show instructions without fake totals
+  const totalAmount = orderData?.totalIDR ?? null;
+  const dynamicQrisString =
+    totalAmount != null && totalAmount > 0
+      ? generateDynamicQris(defaultQrisStatic, totalAmount)
+      : "";
   
   // Generate local QR Code Data URL server-side (no external API needed)
   let qrisImageUrl = "";
-  try {
-    qrisImageUrl = await QRCode.toDataURL(dynamicQrisString, {
-      width: 260,
-      margin: 1,
-      color: {
-        dark: "#1c1917",
-        light: "#ffffff",
-      },
-    });
-  } catch (e) {
-    console.error("QR Code generation error:", e);
+  if (dynamicQrisString) {
+    try {
+      qrisImageUrl = await QRCode.toDataURL(dynamicQrisString, {
+        width: 260,
+        margin: 1,
+        color: {
+          dark: "#1c1917",
+          light: "#ffffff",
+        },
+      });
+    } catch (e) {
+      console.error("QR Code generation error:", e);
+    }
   }
 
   return (
@@ -75,7 +97,17 @@ export default async function SuksesPage({
         <div className="mt-6 space-y-4 text-sm text-ink/75">
           <p>
             Terima kasih! Pesanan Anda telah dibuat. Silakan lakukan pembayaran
-            sebesar <strong className="text-ink font-semibold">{formatIDR(totalAmount)}</strong> untuk memproses aktivasi.
+            {totalAmount != null ? (
+              <>
+                sebesar{" "}
+                <strong className="text-ink font-semibold">
+                  {formatIDR(totalAmount)}
+                </strong>{" "}
+                untuk memproses aktivasi.
+              </>
+            ) : (
+              <>sesuai total di email konfirmasi untuk memproses aktivasi.</>
+            )}
           </p>
 
           {/* Detailed Payment Instructions */}
@@ -94,7 +126,12 @@ export default async function SuksesPage({
               )}
               <p className="mt-2 text-xs text-ink/60">
                 Scan menggunakan BCA, Mandiri, GoPay, OVO, Dana, atau m-Banking apapun.
-                Nominal <strong>{formatIDR(totalAmount)}</strong> akan terisi otomatis.
+                {totalAmount != null && (
+                  <>
+                    Nominal <strong>{formatIDR(totalAmount)}</strong> akan terisi
+                    otomatis.
+                  </>
+                )}
               </p>
             </div>
           )}

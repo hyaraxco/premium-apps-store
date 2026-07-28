@@ -95,6 +95,10 @@ export async function createOrderAction(input: CheckoutInput) {
         const subtotal = unitPrice * item.quantity;
         totalIDR += subtotal;
 
+          const durationUnit = v.durationDays ? "day" : "month";
+        const durationValue = v.durationDays
+          ? v.durationDays
+          : itemMonths;
         orderItemsData.push({
           id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
           orderId,
@@ -102,6 +106,9 @@ export async function createOrderAction(input: CheckoutInput) {
           variantId: v.id,
           productName: p.name,
           variantLabel: `${v.label} (${itemMonths}m)`,
+          fulfillmentType: p.fulfillmentType,
+          durationUnit,
+          durationValue,
           months: itemMonths,
           qty: item.quantity,
           unitPriceIDR: unitPrice,
@@ -116,6 +123,8 @@ export async function createOrderAction(input: CheckoutInput) {
         });
       }
 
+      const { paymentExpiresAt } = await import("@/lib/pricing");
+      const expires = paymentExpiresAt(input.paymentMethod);
       // Insert Order
       await db.insert(schema.orders).values({
         id: orderId,
@@ -125,6 +134,9 @@ export async function createOrderAction(input: CheckoutInput) {
         paymentMethod: input.paymentMethod,
         totalIDR,
         status: "pending",
+        paymentStatus: "pending",
+        fulfillmentStatus: "pending",
+        paymentExpiresAt: expires,
       });
 
       // Insert Order Items & decrement stock

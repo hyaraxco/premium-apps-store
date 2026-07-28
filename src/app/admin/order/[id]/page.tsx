@@ -58,36 +58,11 @@ export default async function AdminOrderDetailPage({
   }
 
   if (!order) {
-    order = {
-      id: orderId,
-      buyerName: "Budi Santoso",
-      buyerEmail: "budi@example.com",
-      buyerWhatsapp: "081234567890",
-      paymentMethod: "qris",
-      totalIDR: 55000,
-      status: "pending",
-      paymentNote: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    items = [
-      {
-        id: "item-1",
-        orderId,
-        productId: "yt-premium",
-        variantId: "yt-12m",
-        productName: "YouTube Premium Member",
-        variantLabel: "12 Bulan Promo",
-        months: 12,
-        qty: 1,
-        unitPriceIDR: 55000,
-        subtotalIDR: 55000,
-      },
-    ];
+    notFound();
   }
 
   const isInviteType = items.some(
-    (i) => i.productId.includes("yt") || i.productId.includes("ms") || i.productId.includes("g1") || i.productId.includes("canva")
+    (i) => (i.fulfillmentType || "invite") === "invite",
   );
 
   return (
@@ -109,7 +84,12 @@ export default async function AdminOrderDetailPage({
             <div className="flex justify-between items-start border-b border-line pb-4">
               <div>
                 <p className="stamp text-ink/40">Status Pembayaran</p>
-                <h2 className="text-lg font-semibold uppercase text-ink">{order.status}</h2>
+                <h2 className="text-lg font-semibold uppercase text-ink">
+                  {order.paymentStatus || order.status}
+                  <span className="ml-2 text-xs font-normal normal-case text-ink/50">
+                    fulfill: {order.fulfillmentStatus || "—"}
+                  </span>
+                </h2>
               </div>
               <div className="flex items-center gap-2">
                 <form action={updateOrderStatusAction.bind(null, order.id, "paid")}>
