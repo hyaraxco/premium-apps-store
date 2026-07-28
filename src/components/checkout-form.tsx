@@ -80,14 +80,16 @@ export function CheckoutForm() {
       })),
     });
 
-    if (!res.success || !res.orderId) {
+    if (!res.success) {
       setServerError(res.error || "Gagal memproses pesanan.");
       setSubmitting(false);
       return;
     }
 
     clear();
-    router.push(`/checkout/sukses?order=${res.orderId}&method=${paymentMethod}`, {
+    const q = new URLSearchParams({ order: res.orderId });
+    if (res.publicToken) q.set("token", res.publicToken);
+    router.push(`/checkout/sukses?${q.toString()}`, {
       transitionTypes: ["nav-forward"],
     });
   }

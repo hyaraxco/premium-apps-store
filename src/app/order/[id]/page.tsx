@@ -25,6 +25,16 @@ export default async function OrderStatusPage({
 }) {
   const { id: orderId } = await params;
 
+  // Best-effort: release stock for any unpaid orders past TTL
+  if (process.env.DATABASE_URL) {
+    try {
+      const { expireUnpaidOrders } = await import("@/lib/orders/expire");
+      await expireUnpaidOrders(20);
+    } catch (e) {
+      console.error("expireUnpaidOrders", e);
+    }
+  }
+
   let order = null;
   let items: (typeof schema.orderItems.$inferSelect)[] = [];
   let fulfillment: (typeof schema.orderFulfillments.$inferSelect) | null = null;

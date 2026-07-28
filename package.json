@@ -12,6 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "check:pricing": "tsx scripts/pricing-selfcheck.ts",
+    "check:token": "tsx scripts/order-token-selfcheck.ts",
     "check:tx": "tsx scripts/tx-smoke.ts"
   },
   "dependencies": {

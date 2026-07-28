@@ -20,6 +20,15 @@ export default async function AdminOrdersPage({
   let orderList: (typeof schema.orders.$inferSelect)[] = [];
   let loadError: string | null = null;
 
+  if (process.env.DATABASE_URL) {
+    try {
+      const { expireUnpaidOrders } = await import("@/lib/orders/expire");
+      await expireUnpaidOrders(20);
+    } catch (e) {
+      console.error("expireUnpaidOrders", e);
+    }
+  }
+
   if (!process.env.DATABASE_URL) {
     loadError = "DATABASE_URL belum diset — order admin tidak tersedia.";
   } else {
