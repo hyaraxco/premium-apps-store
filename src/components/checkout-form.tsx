@@ -94,9 +94,16 @@ export function CheckoutForm() {
     });
   }
 
+  function handleClearErrors(e: React.FocusEvent<HTMLInputElement>) {
+    if (errors[e.target.name]) {
+      setErrors((err) => ({ ...err, [e.target.name]: "" }));
+    }
+  }
+
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className="grid gap-8 lg:grid-cols-[1fr_320px] lg:gap-10"
     >
       <div className="space-y-6">
@@ -115,6 +122,7 @@ export function CheckoutForm() {
               type="text"
               placeholder="e.g. Budi Santoso"
               error={errors.name}
+              onFocus={handleClearErrors}
             />
             <Field
               id="email"
@@ -122,56 +130,60 @@ export function CheckoutForm() {
               type="email"
               placeholder="e.g. budi@example.com"
               error={errors.email}
+              onFocus={handleClearErrors}
             />
             <Field
               id="whatsapp"
               label="Nomor WhatsApp (opsional, untuk bantuan/klaim garansi)"
               type="tel"
               placeholder="e.g. 081234567890"
+              onFocus={handleClearErrors}
             />
           </div>
         </div>
 
         {/* Payment Method Selector */}
         <div className="surface p-6 sm:p-7">
-          <h2 className="text-lg font-semibold tracking-tight text-ink">
-            Metode Pembayaran
-          </h2>
-          <p className="mt-1 text-sm text-ink/60">
-            Pilih metode pembayaran yang ingin Anda gunakan.
-          </p>
+          <fieldset>
+            <legend className="text-lg font-semibold tracking-tight text-ink">
+              Metode Pembayaran
+            </legend>
+            <p className="mt-1 text-sm text-ink/60">
+              Pilih metode pembayaran yang ingin Anda gunakan.
+            </p>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {[
-              { id: "qris", title: "QRIS", desc: "Auto Nominal QR" },
-              { id: "bca", title: "BCA", desc: "Transfer Bank" },
-              { id: "seabank", title: "Seabank", desc: "Transfer Bank" },
-            ].map((m) => (
-              <label
-                key={m.id}
-                className={`flex flex-col justify-between rounded-lg border p-3.5 cursor-pointer transition ${
-                  paymentMethod === m.id
-                    ? "border-ink bg-sand/30 font-semibold"
-                    : "border-line bg-paper text-ink/70 hover:border-ink/30"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-semibold">{m.title}</span>
-                  <input
-                    type="radio"
-                    name="payment-method"
-                    value={m.id}
-                    checked={paymentMethod === m.id}
-                    onChange={() => setPaymentMethod(m.id as "bca" | "seabank" | "qris")}
-                    className="accent-ink"
-                  />
-                </div>
-                <span className="mt-2 text-xs font-normal text-ink/50">
-                  {m.desc}
-                </span>
-              </label>
-            ))}
-          </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                { id: "qris", title: "QRIS", desc: "Auto Nominal QR" },
+                { id: "bca", title: "BCA", desc: "Transfer Bank" },
+                { id: "seabank", title: "Seabank", desc: "Transfer Bank" },
+              ].map((m) => (
+                <label
+                  key={m.id}
+                  className={`flex flex-col justify-between rounded-lg border p-3.5 cursor-pointer transition ${
+                    paymentMethod === m.id
+                      ? "border-ink bg-sand/30 font-semibold"
+                      : "border-line bg-paper text-ink/70 hover:border-ink/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-base font-semibold">{m.title}</span>
+                    <input
+                      type="radio"
+                      name="payment-method"
+                      value={m.id}
+                      checked={paymentMethod === m.id}
+                      onChange={() => setPaymentMethod(m.id as "bca" | "seabank" | "qris")}
+                      className="accent-ink"
+                    />
+                  </div>
+                  <span className="mt-2 text-xs font-normal text-ink/50">
+                    {m.desc}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </div>
 
         {serverError && (
@@ -242,12 +254,14 @@ function Field({
   type,
   placeholder,
   error,
+  onFocus,
 }: {
   id: string;
   label: string;
   type: string;
   placeholder: string;
   error?: string;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
 }) {
   return (
     <div>
@@ -259,9 +273,16 @@ function Field({
         name={id}
         type={type}
         placeholder={placeholder}
-        className="mt-1.5 w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/35 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
+        onFocus={onFocus}
+        aria-invalid={!!error}
+        aria-errormessage={error ? `${id}-error` : undefined}
+        className="mt-1.5 w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/35 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink aria-invalid:border-rose-500 aria-invalid:ring-rose-500"
       />
-      {error && <p className="mt-1 text-xs text-rose-700">{error}</p>}
+      {error && (
+        <p id={`${id}-error`} className="mt-1.5 text-xs font-medium text-rose-700" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

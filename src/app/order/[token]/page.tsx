@@ -10,9 +10,10 @@ import { hashPublicOrderToken } from "@/lib/order-token";
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ token: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { token } = await params;
   return {
     title: "Status Pesanan",
     description: "Lacak status pesanan Hyarax Apps (tanpa menampilkan akses lisensi).",
@@ -28,16 +29,16 @@ function maskEmail(email: string): string {
 }
 
 /**
- * Public tracking by unguessable token (param name stays [id] for routing).
+ * Public tracking by unguessable token.
  * Lookup: SHA-256(token) === orders.public_token_hash
  * Never shows invite links or credentials — those are email-only.
  */
 export default async function OrderStatusPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ token: string }>;
 }) {
-  const { id: publicToken } = await params;
+  const { token: publicToken } = await params;
 
   if (!publicToken || publicToken.length < 16) {
     notFound();

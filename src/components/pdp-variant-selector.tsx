@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Product, ProductVariant } from "@/types/product";
+import type { Product } from "@/types/product";
 import { formatIDR } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/lib/cart-context";
@@ -12,20 +12,16 @@ export function PDPVariantSelector({ product }: { product: Product }) {
   const { addItem } = useCart();
   const variants = product.variants || [];
 
-  // Check if product is family stepper (has priceMonthlyIDR or promo 12M)
   const isFamilyMonthly = variants.some((v) => v.durationMonths === 1 && v.priceMonthlyIDR);
 
-  // Initial state for Family: 1 month by default
   const [selectedMonths, setSelectedMonths] = useState<number>(1);
-
-  // Initial state for Fixed SKU radio
   const [selectedVariantId, setSelectedVariantId] = useState<string>(
     variants[0]?.id || ""
   );
-
+  // T1.3 Qty stepper on PDP
+  const [qty, setQty] = useState<number>(1);
   const [added, setAdded] = useState(false);
 
-  // Calculate pricing for Family Monthly
   const monthlyVariant = variants.find((v) => v.durationMonths === 1) || variants[0];
   const promoVariant = variants.find((v) => v.durationMonths === 12 && v.isPromo);
 
@@ -39,20 +35,22 @@ export function PDPVariantSelector({ product }: { product: Product }) {
     isPromoApplied = true;
   }
 
-  // Pricing for Fixed SKU
   const selectedVariant = variants.find((v) => v.id === selectedVariantId) || variants[0];
-  const finalPrice = isFamilyMonthly ? calculatedPrice : selectedVariant?.priceIDR || 0;
+  const unitPrice = isFamilyMonthly ? calculatedPrice : selectedVariant?.priceIDR || 0;
+  const finalPrice = unitPrice * qty;
   const currentStock = isFamilyMonthly ? (promoVariant?.stock ?? monthlyVariant?.stock ?? product.totalStock) : (selectedVariant?.stock ?? 0);
 
   const handleAddToCart = () => {
     if (isFamilyMonthly) {
       const activeVariant = selectedMonths === 12 && promoVariant ? promoVariant : monthlyVariant;
-      addItem(product.id, activeVariant?.id, 1, selectedMonths);
+      addItem(product.id, activeVariant?.id, qty, selectedMonths);
     } else {
-      addItem(product.id, selectedVariantId, 1, selectedVariant?.durationMonths || 1);
+      addItem(product.id, selectedVariantId, qty, selectedVariant?.durationMonths || 1);
     }
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
+    // reset qty
+    setQty(1);
   };
 
   return (
@@ -66,13 +64,12 @@ export function PDPVariantSelector({ product }: { product: Product }) {
         {isFamilyMonthly && (
           <span className="text-sm text-ink/55">
             {selectedMonths === 12 && isPromoApplied
-              ? "untuk 12 bulan (Promo)"
-              : `untuk ${selectedMonths} bulan`}
+              ? `untuk 12 bulan × ${qty}`
+              : `untuk ${selectedMonths} bulan × ${qty}`}
           </span>
         )}
       </div>
 
-      {/* Stepper Durasi untuk Family Monthly */}
       {isFamilyMonthly && (
         <div className="mt-4 space-y-2 rounded-lg border border-line bg-sand/30 p-3">
           <p className="stamp text-ink/50">Pilih Durasi (Bulan)</p>
@@ -108,46 +105,76 @@ export function PDPVariantSelector({ product }: { product: Product }) {
                 }`}
                 onClick={() => setSelectedMonths(12)}
               >
-                🎁 Promo 12m ({formatIDR(promoVariant.priceIDR)})
+                🎁 Promo 12m
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Radio List untuk Fixed SKU */}
       {!isFamilyMonthly && variants.length > 1 && (
         <div className="mt-4 space-y-2 rounded-lg border border-line bg-sand/30 p-3">
-          <p className="stamp text-ink/50">Pilih Varian / Durasi</p>
-          <div className="space-y-1.5">
-            {variants.map((v) => (
-              <label
-                key={v.id}
-                className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition ${
-                  selectedVariantId === v.id
-                    ? "border-ink bg-paper font-semibold"
-                    : "border-line bg-paper/60 text-ink/70 hover:border-ink/30"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="pdp-variant"
-                    value={v.id}
-                    checked={selectedVariantId === v.id}
-                    onChange={() => setSelectedVariantId(v.id)}
-                    className="accent-ink"
-                  />
-                  <span>{v.label}</span>
-                </div>
-                <span className="tabular-nums font-medium">
-                  {formatIDR(v.priceIDR)}
-                </span>
-              </label>
-            ))}
-          </div>
+          <fieldset>
+            <legend className="stamp text-ink/50 mb-2">Pilih Varian / Durasi</legend>
+            <div className="space-y-1.5">
+              {variants.map((v) => (
+                <label
+                  key={v.id}
+                  className={`flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition ${
+                    selectedVariantId === v.id
+                      ? "border-ink bg-paper font-semibold"
+                      : "border-line bg-paper/60 text-ink/70 hover:border-ink/30"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="pdp-variant"
+                      value={v.id}
+                      checked={selectedVariantId === v.id}
+                      onChange={() => setSelectedVariantId(v.id)}
+                      className="accent-ink"
+                    />
+                    <span>{v.label}</span>
+                  </div>
+                  <span className="tabular-nums font-medium">
+                    {formatIDR(v.priceIDR)}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
         </div>
       )}
+
+      <div className="mt-4 flex items-center justify-between rounded-lg border border-line bg-sand/30 p-3">
+        <label htmlFor="pdp-qty" className="stamp text-ink/50 cursor-pointer">
+          Kuantitas (Unit)
+        </label>
+        <div className="inline-flex items-center rounded-md border border-line bg-paper">
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center text-ink/70 hover:bg-sand disabled:opacity-30"
+            onClick={() => setQty((q) => Math.max(1, q - 1))}
+            disabled={qty <= 1}
+            aria-label="Kurangi kuantitas"
+          >
+            −
+          </button>
+          <span id="pdp-qty" className="w-8 text-center text-sm font-semibold tabular-nums">
+            {qty}
+          </span>
+          <button
+            type="button"
+            className="flex h-9 w-9 items-center justify-center text-ink/70 hover:bg-sand disabled:opacity-30"
+            onClick={() => setQty((q) => Math.min(10, q + 1))}
+            disabled={qty >= 10 || qty >= currentStock}
+            aria-label="Tambah kuantitas"
+          >
+            +
+          </button>
+        </div>
+      </div>
 
       <dl className="mt-4 space-y-2 rounded-lg border border-line bg-sand/30 px-3 py-2.5">
         <div className="flex items-center justify-between gap-3 text-sm">
