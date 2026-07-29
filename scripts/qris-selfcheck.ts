@@ -31,6 +31,11 @@ function runTests() {
     throw new Error("Test failed: Tag 54 (amount 0) not injected properly");
   }
 
+  // Test 3: Point of Initiation Method is Dynamic
+  if (!dynamicPayload.includes("010212")) {
+    throw new Error("Test failed: Point of initiation method not changed to dynamic (12)");
+  }
+
   console.log("qris-dynamic self-check OK");
 }
 

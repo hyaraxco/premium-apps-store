@@ -6,6 +6,7 @@ import { getProductById } from "@/lib/products";
 import { formatIDR } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { StatusMeta } from "@/components/status-meta";
+import { unitPriceIdr } from "@/lib/pricing";
 
 export function CartView() {
   const { items, subtotal, setQuantity, removeItem, hydrated } = useCart();
@@ -62,9 +63,9 @@ export function CartView() {
             const product = getProductById(item.productId);
             if (!product) return null;
 
+            const variant = product.variants?.find((v) => v.id === item.variantId) || product.variants?.[0];
             const itemMonths = item.months || 1;
-            const unitPrice =
-              (product.minPriceIDR || product.price || 0) * itemMonths;
+            const unitPrice = variant ? unitPriceIdr(variant, itemMonths) : (product.minPriceIDR || product.price || 0) * itemMonths;
             const itemTotal = unitPrice * item.quantity;
 
             return (

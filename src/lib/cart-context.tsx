@@ -21,6 +21,7 @@ import {
   type CartPeerAction,
 } from "@/lib/cart-bus";
 import { getTabId } from "@/lib/tab-id";
+import { unitPriceIdr } from "@/lib/pricing";
 
 interface CartContextValue {
   items: CartItem[];
@@ -222,10 +223,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return items.reduce((sum, i) => {
       const product = getProductById(i.productId);
       if (!product) return sum;
-      const basePrice = product.price || product.minPriceIDR || 0;
-      // Handle stepper multiplier for monthly family
+      const variant = product.variants?.find((v) => v.id === i.variantId) || product.variants?.[0];
       const itemMonths = i.months || 1;
-      const unitPrice = itemMonths === 12 && product.originalPrice ? product.price || basePrice : basePrice * itemMonths;
+      const unitPrice = variant ? unitPriceIdr(variant, itemMonths) : (product.minPriceIDR || product.price || 0) * itemMonths;
       return sum + unitPrice * i.quantity;
     }, 0);
   }, [items]);
