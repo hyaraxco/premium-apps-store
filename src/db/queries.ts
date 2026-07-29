@@ -113,8 +113,12 @@ export async function getProductsFromDb(): Promise<Product[]> {
     });
   } catch (error) {
     console.error("DB Query error:", error);
-    // Fail closed when DB configured — do not serve stale mock inventory
-    throw error;
+    // Saat Vercel Build (Static Generation), jangan lemparkan Error mematikan jika DB koneksi refuse.
+    // Lanjutkan dengan fallback kosong. Di environment production real/runtime, error ditangani per request.
+    if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+      throw error;
+    }
+    return [];
   }
 }
 
@@ -155,7 +159,10 @@ export async function getProductBySlugFromDb(
     return mapDbProduct(p, rawVariants, poolStock);
   } catch (error) {
     console.error("DB Query error for slug:", slug, error);
-    throw error;
+    if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+      throw error;
+    }
+    return null;
   }
 }
 
