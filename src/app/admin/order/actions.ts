@@ -7,6 +7,7 @@ import { sendFulfillmentEmail } from "@/lib/email";
 import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/admin-auth";
 import { withTransaction } from "@/db/tx";
+import { encryptText } from "@/lib/crypto";
 
 export async function markOrderPaidAction(orderId: string, reference?: string) {
   const isAuthed = await verifyAdminSession();
@@ -94,7 +95,7 @@ export async function submitUnitFulfillmentAction(formData: FormData) {
           type,
           inviteLink: inviteLink || null,
           username: username || null,
-          secretCiphertext: password || null, // TODO: encrypt later
+          secretCiphertext: password ? encryptText(password) : null,
           notes: notes || null,
           unitStatus: "sent",
           sentAt: new Date(),
@@ -105,7 +106,7 @@ export async function submitUnitFulfillmentAction(formData: FormData) {
           set: {
             inviteLink: inviteLink || null,
             username: username || null,
-            secretCiphertext: password || null,
+            secretCiphertext: password ? encryptText(password) : null,
             notes: notes || null,
             unitStatus: "sent",
             sentAt: new Date(),
