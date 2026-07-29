@@ -112,13 +112,8 @@ export async function getProductsFromDb(): Promise<Product[]> {
       return mapDbProduct(p, vList, poolStock);
     });
   } catch (error) {
-    console.error("DB Query error:", error);
-    // Saat Vercel Build (Static Generation), jangan lemparkan Error mematikan jika DB koneksi refuse.
-    // Lanjutkan dengan fallback kosong. Di environment production real/runtime, error ditangani per request.
-    if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
-      throw error;
-    }
-    return [];
+    console.error("DB Query error, returning fallback products:", error);
+    return fallbackProducts;
   }
 }
 
@@ -159,10 +154,7 @@ export async function getProductBySlugFromDb(
     return mapDbProduct(p, rawVariants, poolStock);
   } catch (error) {
     console.error("DB Query error for slug:", slug, error);
-    if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
-      throw error;
-    }
-    return null;
+    return fallbackProducts.find((p) => p.slug === slug) || null;
   }
 }
 
