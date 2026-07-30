@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Admin Login",
-  description: "Masuk ke panel admin Stackbay.",
+  description: "Masuk ke panel admin Hyarax Apps.",
 };
 
 export default function AdminLoginPage() {

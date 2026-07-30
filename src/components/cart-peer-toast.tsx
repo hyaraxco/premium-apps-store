@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   CART_LOCAL_EVENT,
   isCartPeerMessage,
@@ -144,9 +145,14 @@ function messageToToast(msg: CartPeerMessage, self: boolean): Toast {
  * - other tabs: BroadcastChannel stackbay-cart
  */
 export function CartPeerToast() {
+  const pathname = usePathname();
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  // Admin panel: no store cart toasts
+  const hide = pathname.startsWith("/admin");
+
   useEffect(() => {
+    if (hide) return;
     const tabId = getTabId();
     const bc = openCartChannel();
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -198,9 +204,9 @@ export function CartPeerToast() {
       timers.forEach((t) => clearTimeout(t));
       timers.clear();
     };
-  }, []);
+  }, [hide]);
 
-  if (toasts.length === 0) return null;
+  if (hide || toasts.length === 0) return null;
 
   return (
     <div

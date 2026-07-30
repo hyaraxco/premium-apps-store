@@ -35,6 +35,9 @@ export function SiteHeader() {
     };
   }, [open]);
 
+  // Admin has its own chrome — avoid double sticky navbars
+  if (pathname.startsWith("/admin")) return null;
+
   const isHome = pathname === "/";
 
   return (
