@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { generateDynamicQris } from "@/lib/qris";
+import {
+  DEFAULT_MERCHANT_QRIS_STATIC,
+  generateDynamicQris,
+  isValidQrisStatic,
+} from "@/lib/qris";
 import { formatIDR } from "@/lib/format";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
@@ -12,8 +16,29 @@ export const metadata: Metadata = {
   description: "Instruksi pembayaran dan lacak status pesanan.",
 };
 
-const defaultQrisStatic =
-  "00020101021126590014ID.LINKAJA.WWW01189360091400000000000215ID10254005290260303A0151330014ID.GPN.WWW02150000000000000005204581253033605802ID5921WARUNG BU DIR, TJHALANG6007BANDUNG61054011562070703A016304";
+async function loadQrisStatic(): Promise<string> {
+  if (process.env.DATABASE_URL) {
+    try {
+      const rows = await db
+        .select()
+        .from(schema.adminSettings)
+        .where(eq(schema.adminSettings.key, "qris_string"))
+        .limit(1);
+      const fromDb = rows[0]?.value?.trim() ?? "";
+      // Only accept structurally valid merchant static (CRC + top-level TLV).
+      // Reject empty / demo LinkAja / corrupt paste — fall back to real GoPay default.
+      if (fromDb && isValidQrisStatic(fromDb)) return fromDb;
+      if (fromDb) {
+        console.warn(
+          "admin_settings.qris_string invalid EMV/CRC; using DEFAULT_MERCHANT_QRIS_STATIC",
+        );
+      }
+    } catch {
+      // fall through
+    }
+  }
+  return DEFAULT_MERCHANT_QRIS_STATIC;
+}
 
 export default async function SuksesPage({
   searchParams,
@@ -56,11 +81,20 @@ export default async function SuksesPage({
     (orderData?.paymentMethod as string) || method || "qris";
   // Without DB, cannot invent amount — show instructions without fake totals
   const totalAmount = orderData?.totalIDR ?? null;
-  const dynamicQrisString =
-    totalAmount != null && totalAmount > 0
-      ? generateDynamicQris(defaultQrisStatic, totalAmount)
-      : "";
-  
+
+  const staticQris = await loadQrisStatic();
+  let dynamicQrisString = "";
+  let qrisError = "";
+  if (paymentMethod === "qris" && totalAmount != null && totalAmount > 0) {
+    try {
+      dynamicQrisString = generateDynamicQris(staticQris, totalAmount);
+    } catch (e) {
+      qrisError =
+        e instanceof Error ? e.message : "Gagal membuat QRIS dinamis";
+      console.error("QRIS generate error:", e);
+    }
+  }
+
   // Generate local QR Code Data URL server-side (no external API needed)
   let qrisImageUrl = "";
   if (dynamicQrisString) {
@@ -75,6 +109,7 @@ export default async function SuksesPage({
       });
     } catch (e) {
       console.error("QR Code generation error:", e);
+      qrisError = "Gagal merender gambar QR";
     }
   }
 
@@ -114,7 +149,7 @@ export default async function SuksesPage({
           {paymentMethod === "qris" && (
             <div className="rounded-lg border border-line bg-sand/30 p-5 text-center">
               <p className="stamp text-ink/40">SCAN QRIS DINAMIS</p>
-              {qrisImageUrl && (
+              {qrisImageUrl ? (
                 <div className="mt-3 inline-block rounded-lg border border-line bg-white p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
@@ -123,6 +158,11 @@ export default async function SuksesPage({
                     className="h-56 w-56 mx-auto"
                   />
                 </div>
+              ) : (
+                <p className="mt-3 text-xs text-red-700 dark:text-red-300">
+                  {qrisError ||
+                    "QRIS belum siap. Pastikan string QRIS statis toko di Admin → Pengaturan valid."}
+                </p>
               )}
               <p className="mt-2 text-xs text-ink/60">
                 Scan menggunakan BCA, Mandiri, GoPay, OVO, Dana, atau m-Banking apapun.
@@ -145,7 +185,7 @@ export default async function SuksesPage({
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span>Atas Nama:</span>
-                <span className="text-ink">WARUNG BU DIR</span>
+                <span className="text-ink">Warung Bu Dir, TJHALANG</span>
               </div>
             </div>
           )}
@@ -159,7 +199,7 @@ export default async function SuksesPage({
               </div>
               <div className="flex justify-between items-center text-sm">
                 <span>Atas Nama:</span>
-                <span className="text-ink">WARUNG BU DIR</span>
+                <span className="text-ink">Warung Bu Dir, TJHALANG</span>
               </div>
             </div>
           )}

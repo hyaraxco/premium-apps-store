@@ -234,7 +234,12 @@ const seedSettingsDev = [
   { key: "bca_number", value: "0000000000" },
   { key: "seabank_name", value: "DEV PLACEHOLDER" },
   { key: "seabank_number", value: "0000000000" },
-  { key: "qris_string", value: "" },
+  {
+    key: "qris_string",
+    // Real GoPay merchant static (Warung Bu Dir) — never use fake LinkAja zeros
+    value:
+      "00020101021126610014COM.GO-JEK.WWW01189360091430354699480210G0354699480303UMI51440014ID.CO.QRIS.WWW0215ID10254005290260303UMI5204581253033605802ID5923Warung Bu Dir, TJHALANG6005BOGOR61051632062070703A0163040971",
+  },
   { key: "admin_wa", value: "6280000000000" },
   { key: "maintenance_mode", value: "false" },
 ];

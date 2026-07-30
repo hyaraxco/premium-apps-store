@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
+import { DEFAULT_MERCHANT_QRIS_STATIC } from "@/lib/qris";
 import { updateAdminSettingsAction } from "./actions";
 import { Button } from "@/components/ui/button";
 
@@ -11,12 +12,11 @@ export const metadata: Metadata = {
 
 export default async function AdminPengaturanPage() {
   const settingsMap: Record<string, string> = {
-    bca_name: "WARUNG BU DIR",
+    bca_name: "Warung Bu Dir, TJHALANG",
     bca_number: "1234567890",
-    seabank_name: "WARUNG BU DIR",
+    seabank_name: "Warung Bu Dir, TJHALANG",
     seabank_number: "9876543210",
-    qris_string:
-      "00020101021126590014ID.LINKAJA.WWW01189360091400000000000215ID10254005290260303A0151330014ID.GPN.WWW02150000000000000005204581253033605802ID5921WARUNG BU DIR, TJHALANG6007BANDUNG61054011562070703A016304",
+    qris_string: DEFAULT_MERCHANT_QRIS_STATIC,
     admin_wa: "6281234567890",
     maintenance_mode: "false",
   };
