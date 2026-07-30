@@ -6,7 +6,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { NavShell } from "@/components/nav-shell";
 import { HistoryNav } from "@/components/history-nav";
 import { CartPeerToast } from "@/components/cart-peer-toast";
-import { WhatsappFab } from "@/components/whatsapp-fab";
+import { WhatsappFabHost } from "@/components/whatsapp-fab-host";
 import { Suspense } from "react";
 import "./globals.css";
 
@@ -56,7 +56,7 @@ export default function RootLayout({
           <SiteFooter />
           <CartPeerToast />
           <Suspense fallback={null}>
-            <WhatsappFab />
+            <WhatsappFabHost />
           </Suspense>
         </CartProvider>
       </body>

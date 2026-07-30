@@ -2,14 +2,15 @@
 
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/admin-auth";
+import { redirectWithFlash } from "@/lib/admin-flash";
+import { isValidQrisStatic } from "@/lib/qris";
 
 export async function updateAdminSettingsAction(formData: FormData) {
   const isAuthed = await verifyAdminSession();
   if (!isAuthed) {
-    throw new Error("Unauthorized: Admin session required.");
+    redirectWithFlash("/admin/login", "err", "Sesi admin berakhir.");
   }
 
   const bcaName = String(formData.get("bca_name") ?? "").trim();
@@ -18,7 +19,16 @@ export async function updateAdminSettingsAction(formData: FormData) {
   const seabankNumber = String(formData.get("seabank_number") ?? "").trim();
   const qrisString = String(formData.get("qris_string") ?? "").trim();
   const adminWa = String(formData.get("admin_wa") ?? "").trim();
-  const maintenanceMode = formData.get("maintenance_mode") === "on" ? "true" : "false";
+  const maintenanceMode =
+    formData.get("maintenance_mode") === "on" ? "true" : "false";
+
+  if (qrisString && !isValidQrisStatic(qrisString)) {
+    redirectWithFlash(
+      "/admin/pengaturan",
+      "err",
+      "String QRIS tidak valid (TLV/CRC). Paste payload statis utuh dari stiker merchant.",
+    );
+  }
 
   const settingsToUpdate = [
     { key: "bca_name", value: bcaName },
@@ -30,20 +40,36 @@ export async function updateAdminSettingsAction(formData: FormData) {
     { key: "maintenance_mode", value: maintenanceMode },
   ];
 
-  if (process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL) {
+    redirectWithFlash(
+      "/admin/pengaturan",
+      "err",
+      "DATABASE_URL belum diset — pengaturan tidak tersimpan.",
+    );
+  }
+
+  try {
     for (const item of settingsToUpdate) {
-      if (item.value) {
-        await db
-          .insert(schema.adminSettings)
-          .values({ key: item.key, value: item.value, updatedAt: new Date() })
-          .onConflictDoUpdate({
-            target: schema.adminSettings.key,
-            set: { value: item.value, updatedAt: new Date() },
-          });
-      }
+      // Always upsert including empty (except we keep qris optional empty → falls back at runtime)
+      await db
+        .insert(schema.adminSettings)
+        .values({ key: item.key, value: item.value, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: schema.adminSettings.key,
+          set: { value: item.value, updatedAt: new Date() },
+        });
     }
+  } catch (e) {
+    console.error("Settings save error:", e);
+    redirectWithFlash("/admin/pengaturan", "err", "Gagal menyimpan pengaturan.");
   }
 
   revalidatePath("/admin/pengaturan");
   revalidatePath("/checkout/sukses");
+  revalidatePath("/");
+  redirectWithFlash(
+    "/admin/pengaturan",
+    "ok",
+    "Pengaturan toko disimpan.",
+  );
 }

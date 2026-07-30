@@ -2,14 +2,15 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 
-const DEFAULT_WA = "6281234567890";
+const FALLBACK_WA = "6281234567890";
 
-export function WhatsappFab() {
+export function WhatsappFab({ waNumber }: { waNumber?: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Hide on admin routes
   if (pathname.startsWith("/admin")) return null;
+
+  const wa = (waNumber || FALLBACK_WA).replace(/\D/g, "") || FALLBACK_WA;
 
   let orderId = "";
   if (pathname.startsWith("/order/")) {
@@ -22,7 +23,7 @@ export function WhatsappFab() {
     ? `Halo Admin Hyarax Apps, saya butuh bantuan / konfirmasi pembayaran untuk pesanan: ${orderId}`
     : "Halo Admin Hyarax Apps, saya ingin bertanya tentang lisensi aplikasi.";
 
-  const waUrl = `https://wa.me/${DEFAULT_WA}?text=${encodeURIComponent(message)}`;
+  const waUrl = `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
 
   return (
     <a
