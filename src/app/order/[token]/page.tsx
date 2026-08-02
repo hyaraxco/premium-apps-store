@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { formatIDR } from "@/lib/format";
+import { formatIDR, sanitizeWaNumber } from "@/lib/format";
 import { hashPublicOrderToken } from "@/lib/order-token";
 
 export async function generateMetadata({
@@ -66,6 +66,7 @@ export default async function OrderStatusPage({
 
   let order: typeof schema.orders.$inferSelect | null = null;
   let items: (typeof schema.orderItems.$inferSelect)[] = [];
+  let adminWa = "";
 
   try {
     const res = await db
@@ -80,6 +81,13 @@ export default async function OrderStatusPage({
         .select()
         .from(schema.orderItems)
         .where(eq(schema.orderItems.orderId, order.id));
+
+      const settings = await db
+        .select()
+        .from(schema.adminSettings)
+        .where(eq(schema.adminSettings.key, "admin_wa"))
+        .limit(1);
+      adminWa = settings[0]?.value ?? "";
     }
   } catch (e) {
     console.error("order track lookup", e);
@@ -99,12 +107,13 @@ export default async function OrderStatusPage({
     refunded: { label: "Refund", color: "bg-sand text-ink/50" },
   }[statusKey] || { label: statusKey, color: "bg-sand text-ink" };
 
+  const nowTime = new Date().getTime();
   const expiresAt = order.paymentExpiresAt
     ? new Date(order.paymentExpiresAt)
     : null;
   const pending = statusKey === "pending";
   const expired =
-    pending && expiresAt != null && expiresAt.getTime() < Date.now();
+    pending && expiresAt != null && expiresAt.getTime() < nowTime;
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
@@ -184,6 +193,26 @@ export default async function OrderStatusPage({
         </div>
 
         <div className="flex flex-col gap-2.5 pt-2 sm:flex-row">
+          {pending && !expired && (
+            <Link
+              href={`/checkout/sukses?order=${order.id}&method=${order.paymentMethod}&token=${publicToken}`}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-lg border-0 bg-ink text-sm font-medium text-paper shadow-sm hover:opacity-90"
+            >
+              Lanjutkan Pembayaran
+            </Link>
+          )}
+          {adminWa && (
+            <a
+              href={`https://wa.me/${sanitizeWaNumber(adminWa)}?text=${encodeURIComponent(
+                `Halo Admin Hyarax Apps,\n\nSaya ingin bertanya mengenai Order: ${order.id}\nStatus: ${statusBadge.label}\nTotal: ${formatIDR(order.totalIDR)}\n\nMohon bantuannya. Terima kasih!`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Hubungi WA Support
+            </a>
+          )}
           <Link
             href="/katalog"
             transitionTypes={["nav-back"]}

@@ -56,3 +56,14 @@ export function discountPercent(price?: number, original?: number): number | nul
   if (!price || !original || original <= price) return null;
   return Math.round(((original - price) / original) * 100);
 }
+
+export function sanitizeWaNumber(raw?: string | null): string {
+  if (!raw) return "";
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("0")) {
+    digits = "62" + digits.slice(1);
+  } else if (digits.startsWith("8")) {
+    digits = "62" + digits;
+  }
+  return digits;
+}

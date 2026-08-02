@@ -76,16 +76,22 @@ function mapDbProduct(
   };
 }
 
-export async function getProductsFromDb(): Promise<Product[]> {
+export async function getProductsFromDb(options?: { includeInactive?: boolean }): Promise<Product[]> {
   if (!process.env.DATABASE_URL) {
     return fallbackProducts;
   }
   try {
-    const rawProducts = await db
-      .select()
-      .from(schema.products)
-      .where(eq(schema.products.isActive, true))
-      .orderBy(asc(schema.products.sortOrder));
+    const includeInactive = options?.includeInactive ?? false;
+    const rawProducts = includeInactive
+      ? await db
+          .select()
+          .from(schema.products)
+          .orderBy(asc(schema.products.sortOrder))
+      : await db
+          .select()
+          .from(schema.products)
+          .where(eq(schema.products.isActive, true))
+          .orderBy(asc(schema.products.sortOrder));
 
     if (!rawProducts.length) {
       // Honest empty — no silent demo catalog in production
@@ -112,8 +118,9 @@ export async function getProductsFromDb(): Promise<Product[]> {
       return mapDbProduct(p, vList, poolStock);
     });
   } catch (error) {
-    console.error("DB Query error, returning fallback products:", error);
-    return fallbackProducts;
+    console.error("DB Query error (getProductsFromDb):", error);
+    // PRD §5.1: No silent demo catalog when DATABASE_URL set.
+    return [];
   }
 }
 
@@ -154,7 +161,8 @@ export async function getProductBySlugFromDb(
     return mapDbProduct(p, rawVariants, poolStock);
   } catch (error) {
     console.error("DB Query error for slug:", slug, error);
-    return fallbackProducts.find((p) => p.slug === slug) || null;
+    // PRD §5.1: No silent demo catalog when DATABASE_URL set.
+    return null;
   }
 }
 

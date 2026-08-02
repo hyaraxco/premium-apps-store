@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/admin-auth";
 import { redirectWithFlash } from "@/lib/admin-flash";
+import { logAdminAudit } from "@/lib/admin-audit";
 
 export async function updatePoolStockAction(formData: FormData) {
   const isAuthed = await verifyAdminSession();
@@ -30,6 +31,11 @@ export async function updatePoolStockAction(formData: FormData) {
       .update(schema.inventoryPools)
       .set({ availableStock: Math.max(0, newStock), updatedAt: new Date() })
       .where(eq(schema.inventoryPools.productId, productId));
+
+    logAdminAudit({
+      action: "stock.update_pool",
+      details: { productId, newStock: Math.max(0, newStock) },
+    });
   } catch (e) {
     console.error("Update pool stock error:", e);
     redirectWithFlash("/admin/produk", "err", "Gagal update stok pool.");
@@ -66,6 +72,11 @@ export async function toggleProductActiveAction(formData: FormData) {
       .update(schema.products)
       .set({ isActive: !currentActive })
       .where(eq(schema.products.id, productId));
+
+    logAdminAudit({
+      action: "product.toggle_active",
+      details: { productId, nextActive: !currentActive },
+    });
   } catch (e) {
     console.error("Toggle product active error:", e);
     redirectWithFlash("/admin/produk", "err", "Gagal ubah status produk.");

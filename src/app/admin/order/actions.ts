@@ -8,6 +8,7 @@ import { verifyAdminSession } from "@/lib/admin-auth";
 import { withTransaction } from "@/db/tx";
 import { encryptText } from "@/lib/crypto";
 import { redirectWithFlash } from "@/lib/admin-flash";
+import { logAdminAudit } from "@/lib/admin-audit";
 
 export async function markOrderPaidAction(formData: FormData) {
   const isAuthed = await verifyAdminSession();
@@ -48,14 +49,19 @@ export async function markOrderPaidAction(formData: FormData) {
       await tx
         .update(schema.orders)
         .set({
-          paymentStatus: "paid",
           status: "paid",
+          paymentStatus: "paid",
           paidAt: new Date(),
           verifiedBy: "admin",
           paymentReference: reference || null,
           updatedAt: new Date(),
         })
         .where(eq(schema.orders.id, orderId));
+
+      logAdminAudit({
+        action: "order.mark_paid",
+        details: { orderId, reference },
+      });
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Gagal verifikasi bayar";
@@ -208,6 +214,11 @@ export async function submitUnitFulfillmentAction(formData: FormData) {
         .update(schema.orders)
         .set({ fulfillmentStatus: newStatus, updatedAt: new Date() })
         .where(eq(schema.orders.id, orderId));
+
+      logAdminAudit({
+        action: "fulfillment.submit",
+        details: { orderId, orderItemId, unitIndex, type, newFulfillmentStatus: newStatus },
+      });
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Gagal simpan unit";

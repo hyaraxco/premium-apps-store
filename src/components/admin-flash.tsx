@@ -1,43 +1,60 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { parseFlash, type FlashKind } from "@/lib/admin-flash";
 import { cn } from "@/lib/utils";
 
-/** Server banner from ?flash=ok|err&msg=… — strip link clears flash. */
 export function AdminFlash({
   searchParams,
   clearHref,
 }: {
   searchParams: { flash?: string; msg?: string; [k: string]: string | undefined };
-  /** Path without flash params (e.g. /admin/order) */
   clearHref: string;
 }) {
   const flash = parseFlash(searchParams);
-  if (!flash) return null;
+  const router = useRouter();
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (flash) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVisible(true);
+      const timer = setTimeout(() => {
+        setVisible(false);
+        // Replace URL softly after fade out to clear flash query params
+        setTimeout(() => router.replace(clearHref, { scroll: false }), 300);
+      }, 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setVisible(false);
+    }
+  }, [flash, clearHref, router]);
+
+  if (!flash || !visible) return null;
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={cn(
-        "flex items-start justify-between gap-3 rounded-lg border px-4 py-3 text-sm",
-        flash.kind === "ok"
-          ? "border-emerald-600/25 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100"
-          : "border-rose-600/25 bg-rose-500/10 text-rose-950 dark:text-rose-100",
-      )}
-    >
-      <div className="min-w-0">
-        <p className="stamp opacity-60">
-          {flash.kind === "ok" ? "Berhasil" : "Gagal"}
+    <div className="fixed bottom-4 right-4 z-50 pointer-events-auto flex w-full max-w-sm items-start gap-3 border border-line bg-paper px-3.5 py-3 shadow-[var(--shadow-lift)] rounded-[var(--radius-lg)] motion-safe:animate-[sb-toast-in_0.28s_ease-out]">
+      <div className="min-w-0 flex-1">
+        <p className="stamp text-ink/40">Notifikasi Admin</p>
+        <p className={cn("mt-0.5 text-sm font-medium leading-snug", flash.kind === "ok" ? "text-emerald-700 dark:text-emerald-400" : "text-rose-700 dark:text-rose-400")}>
+          {flash.kind === "ok" ? "Aksi Berhasil" : "Aksi Gagal"}
         </p>
-        <p className="mt-0.5 font-medium leading-snug">{flash.message}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-ink/55">
+          {flash.message}
+        </p>
       </div>
-      <Link
-        href={clearHref}
-        className="shrink-0 text-xs font-medium opacity-60 hover:opacity-100"
+      <button
+        type="button"
+        onClick={() => {
+          setVisible(false);
+          router.replace(clearHref, { scroll: false });
+        }}
+        className="shrink-0 text-xs font-medium text-ink/60 hover:text-ink"
         aria-label="Tutup notifikasi"
       >
         Tutup
-      </Link>
+      </button>
     </div>
   );
 }

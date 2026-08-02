@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { verifyAdminSession } from "@/lib/admin-auth";
 import { redirectWithFlash } from "@/lib/admin-flash";
 import { isValidQrisStatic } from "@/lib/qris";
+import { sanitizeWaNumber } from "@/lib/format";
 
 export async function updateAdminSettingsAction(formData: FormData) {
   const isAuthed = await verifyAdminSession();
@@ -18,7 +19,8 @@ export async function updateAdminSettingsAction(formData: FormData) {
   const seabankName = String(formData.get("seabank_name") ?? "").trim();
   const seabankNumber = String(formData.get("seabank_number") ?? "").trim();
   const qrisString = String(formData.get("qris_string") ?? "").trim();
-  const adminWa = String(formData.get("admin_wa") ?? "").trim();
+  const rawAdminWa = String(formData.get("admin_wa") ?? "").trim();
+  const adminWa = sanitizeWaNumber(rawAdminWa);
   const maintenanceMode =
     formData.get("maintenance_mode") === "on" ? "true" : "false";
 

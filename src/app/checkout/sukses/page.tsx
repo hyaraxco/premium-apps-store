@@ -6,7 +6,7 @@ import {
   generateDynamicQris,
   isValidQrisStatic,
 } from "@/lib/qris";
-import { formatIDR } from "@/lib/format";
+import { formatIDR, sanitizeWaNumber } from "@/lib/format";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -83,6 +83,28 @@ export default async function SuksesPage({
   const totalAmount = orderData?.totalIDR ?? null;
 
   const staticQris = await loadQrisStatic();
+  
+  let bcaNumber: string | null = null;
+  let bcaName: string | null = null;
+  let seabankNumber: string | null = null;
+  let seabankName: string | null = null;
+  let adminWa = "";
+  
+  if (process.env.DATABASE_URL) {
+    try {
+      const settings = await db.select().from(schema.adminSettings);
+      for (const row of settings) {
+        if (row.key === "bca_number") bcaNumber = row.value || null;
+        if (row.key === "bca_name") bcaName = row.value || null;
+        if (row.key === "seabank_number") seabankNumber = row.value || null;
+        if (row.key === "seabank_name") seabankName = row.value || null;
+        if (row.key === "admin_wa") adminWa = row.value || "";
+      }
+    } catch {
+      // Settings read failed — bank details stay null, show "hubungi admin"
+    }
+  }
+
   let dynamicQrisString = "";
   let qrisError = "";
   if (paymentMethod === "qris" && totalAmount != null && totalAmount > 0) {
@@ -179,28 +201,48 @@ export default async function SuksesPage({
           {paymentMethod === "bca" && (
             <div className="rounded-lg border border-line bg-sand/30 p-4 space-y-2">
               <p className="stamp text-ink/40">TRANSFER BANK BCA</p>
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span>No. Rekening:</span>
-                <span className="font-mono text-base text-ink">1234567890</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span>Atas Nama:</span>
-                <span className="text-ink">Warung Bu Dir, TJHALANG</span>
-              </div>
+              {bcaNumber ? (
+                <>
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span>No. Rekening:</span>
+                    <span className="font-mono text-base text-ink">{bcaNumber}</span>
+                  </div>
+                  {bcaName && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span>Atas Nama:</span>
+                      <span className="text-ink">{bcaName}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Info rekening BCA belum dikonfigurasi. Hubungi admin via WA untuk detail transfer.
+                </p>
+              )}
             </div>
           )}
 
           {paymentMethod === "seabank" && (
             <div className="rounded-lg border border-line bg-sand/30 p-4 space-y-2">
               <p className="stamp text-ink/40">TRANSFER BANK SEABANK</p>
-              <div className="flex justify-between items-center text-sm font-medium">
-                <span>No. Rekening:</span>
-                <span className="font-mono text-base text-ink">9876543210</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span>Atas Nama:</span>
-                <span className="text-ink">Warung Bu Dir, TJHALANG</span>
-              </div>
+              {seabankNumber ? (
+                <>
+                  <div className="flex justify-between items-center text-sm font-medium">
+                    <span>No. Rekening:</span>
+                    <span className="font-mono text-base text-ink">{seabankNumber}</span>
+                  </div>
+                  {seabankName && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span>Atas Nama:</span>
+                      <span className="text-ink">{seabankName}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-amber-700 dark:text-amber-300">
+                  Info rekening SeaBank belum dikonfigurasi. Hubungi admin via WA untuk detail transfer.
+                </p>
+              )}
             </div>
           )}
 
@@ -217,6 +259,18 @@ export default async function SuksesPage({
         </div>
 
         <div className="mt-7 flex flex-col gap-2.5 sm:flex-row">
+          {adminWa && (
+            <a
+              href={`https://wa.me/${sanitizeWaNumber(adminWa)}?text=${encodeURIComponent(
+                `Halo Admin Hyarax Apps,\n\nSaya sudah bayar untuk:\n- Order ID: ${code}\n- Total: ${totalAmount != null ? formatIDR(totalAmount) : "-"}\n- Metode: ${(paymentMethod || "").toUpperCase()}\n\nMohon dicek dan dikirim. Terima kasih!`,
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-11 flex-1 items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-medium text-white hover:bg-emerald-700"
+            >
+              Konfirmasi via WA
+            </a>
+          )}
           {publicToken ? (
             <Link
               href={`/order/${encodeURIComponent(publicToken)}`}

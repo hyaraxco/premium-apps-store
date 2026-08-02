@@ -44,3 +44,12 @@ next-env.d.ts
 # documentation (keep local only)
 *.md
 !README.md
+
+# agent context / scratch
+.opencode-jce/
+.opencode-context.md
+
+# playwright test artifacts
+.playwright-mcp/
+playwright-report/
+test-results/

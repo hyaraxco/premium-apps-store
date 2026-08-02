@@ -23,6 +23,12 @@ import {
 import { getTabId } from "@/lib/tab-id";
 import { unitPriceIdr } from "@/lib/pricing";
 
+// Ensure items only contain known products to avoid ghost items (count > 0 but empty cart)
+function filterValidItems(items: CartItem[] | null): CartItem[] | null {
+  if (!items) return null;
+  return items.filter((i) => getProductById(i.productId) != null);
+}
+
 interface CartContextValue {
   items: CartItem[];
   count: number;
@@ -40,6 +46,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const itemsRef = useRef(items);
+  // eslint-disable-next-line react-hooks/refs
   itemsRef.current = items;
 
   const bcRef = useRef<BroadcastChannel | null>(null);
@@ -88,9 +95,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     bcRef.current = openCartChannel();
 
     try {
-      const parsed = parseCart(localStorage.getItem(CART_STORAGE_KEY));
+      const parsed = filterValidItems(parseCart(localStorage.getItem(CART_STORAGE_KEY)));
       if (parsed) {
         itemsRef.current = parsed;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setItems(parsed);
       }
     } catch {
@@ -101,7 +109,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== CART_STORAGE_KEY || e.storageArea !== localStorage) return;
       if (skipStorageEcho.current) return;
-      const parsed = parseCart(e.newValue);
+      const parsed = filterValidItems(parseCart(e.newValue));
       if (parsed) {
         itemsRef.current = parsed;
         setItems(parsed);
@@ -120,8 +128,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       if ((data as { tabId?: string }).tabId === tabIdRef.current) return;
       const peerItems = (data as { items?: CartItem[] }).items;
       if (Array.isArray(peerItems)) {
-        itemsRef.current = peerItems;
-        setItems(peerItems);
+        const parsed = filterValidItems(peerItems) || [];
+        itemsRef.current = parsed;
+        setItems(parsed);
       }
     };
 
