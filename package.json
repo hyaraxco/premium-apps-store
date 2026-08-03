@@ -15,6 +15,8 @@
     "check:token": "tsx scripts/order-token-selfcheck.ts",
     "check:qris": "tsx scripts/qris-selfcheck.ts",
     "check:tx": "tsx scripts/tx-smoke.ts",
+    "check:admin-pass": "tsx scripts/admin-pass-selfcheck.ts",
+    "hash:admin-password": "tsx scripts/hash-password.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {
