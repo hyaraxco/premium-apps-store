@@ -1,51 +1,70 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "stackbay-theme";
 
 type Theme = "light" | "dark";
 
-function applyTheme(theme: Theme) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
-}
+/**
+ * Tiny external store for the theme preference (localStorage + system
+ * preference). Using useSyncExternalStore avoids setState-in-effect and is
+ * hydration-safe: the server always snapshots "light", then the client
+ * re-renders once with the real stored value.
+ */
+let theme: Theme = "light";
+const listeners = new Set<() => void>();
 
-function readTheme(): Theme {
+function readStored(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === "light" || stored === "dark") return stored;
   } catch {
     // ignore
   }
-  if (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches
-  ) {
-    return "dark";
-  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+}
+
+// Apply the persisted preference before first paint (module eval runs on the
+// client bundle before React renders).
+if (typeof window !== "undefined") {
+  theme = readStored();
+  document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
+function subscribe(cb: () => void) {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+}
+
+function getSnapshot(): Theme {
+  return theme;
+}
+
+function getServerSnapshot(): Theme {
   return "light";
 }
 
-export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [ready, setReady] = useState(false);
+function apply(next: Theme) {
+  theme = next;
+  try {
+    localStorage.setItem(STORAGE_KEY, next);
+  } catch {
+    // ignore
+  }
+  document.documentElement.classList.toggle("dark", next === "dark");
+  listeners.forEach((cb) => cb());
+}
 
-  useEffect(() => {
-    const next = readTheme();
-    setTheme(next);
-    applyTheme(next);
-    setReady(true);
-  }, []);
+export function ThemeToggle() {
+  const theme = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   function toggle() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    applyTheme(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // ignore
-    }
+    apply(theme === "dark" ? "light" : "dark");
   }
 
   return (
@@ -56,7 +75,7 @@ export function ThemeToggle() {
       aria-label={theme === "dark" ? "Mode terang" : "Mode gelap"}
       title={theme === "dark" ? "Mode terang" : "Mode gelap"}
     >
-      {ready && theme === "dark" ? <SunIcon /> : <MoonIcon />}
+      {theme === "dark" ? <SunIcon /> : <MoonIcon />}
     </button>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq, asc } from "drizzle-orm";
@@ -32,6 +33,7 @@ export default async function AdminOrderDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ flash?: string; msg?: string }>;
 }) {
+  await requireAdmin();
   const { id: orderId } = await params;
   const sp = await searchParams;
 

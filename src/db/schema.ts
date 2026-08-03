@@ -188,6 +188,11 @@ export const adminSessions = pgTable(
 );
 
 // 7. ADMIN SETTINGS
+// NOTE: `value` stays TEXT (not json/jsonb) on purpose: it holds BOTH plain
+// string settings (bca_name, qris_string, ...) AND JSON-stringified blobs
+// (ratelimit_* counters from src/lib/rate-limit.ts). A jsonb column would
+// break selects over the plain-string rows (drizzle auto-parses jsonb).
+// JSON blobs must be stringified/parsed via the helpers in rate-limit.ts.
 export const adminSettings = pgTable("admin_settings", {
   key: varchar("key", { length: 128 }).primaryKey(),
   value: text("value").notNull(),

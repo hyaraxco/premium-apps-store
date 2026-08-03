@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { requireAdmin } from "@/lib/admin-auth";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
@@ -49,6 +50,7 @@ export default async function AdminOrdersPage({
     msg?: string;
   }>;
 }) {
+  await requireAdmin();
   const sp = await searchParams;
   let payFilter = sp.pay || "all";
   let fulfillFilter = sp.fulfill || "all";

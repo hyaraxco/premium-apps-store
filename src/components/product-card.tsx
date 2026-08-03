@@ -12,7 +12,6 @@ export function ProductCard({ product }: { product: Product }) {
     categories.find((c) => c.id === product.category)?.label ?? product.category;
 
   const displayPrice = product.minPriceIDR ?? product.price ?? 0;
-  const hasMultipleVariants = product.variants && product.variants.length > 1;
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden border border-line bg-paper rounded-[var(--radius-xl)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out hover:-translate-y-0.5 hover:border-ink/20 hover:bg-sand/15 hover:shadow-[var(--shadow-lift)] motion-reduce:transition-colors motion-reduce:hover:translate-y-0 motion-reduce:hover:shadow-none">

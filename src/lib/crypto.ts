@@ -1,9 +1,9 @@
 import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
 
-// For AES-256-GCM, key must be exactly 32 bytes.
+// For AES-256-GCM, key must be exactly 32 bytes. The auth tag is always 16
+// bytes for GCM (fixed by the algorithm).
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
-const AUTH_TAG_LENGTH = 16;
 
 /**
  * Get the secret key from environment variable. 

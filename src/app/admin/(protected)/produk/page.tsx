@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { requireAdmin } from "@/lib/admin-auth";
 import { getProductsFromDb } from "@/db/queries";
 import { formatIDR } from "@/lib/format";
 import { AdminFlash } from "@/components/admin-flash";
@@ -25,6 +26,7 @@ export default async function AdminProdukPage({
 }: {
   searchParams: Promise<{ flash?: string; msg?: string; q?: string; status?: string }>;
 }) {
+  await requireAdmin();
   const sp = await searchParams;
   const query = (sp.q ?? "").trim().toLowerCase();
   const statusFilter = sp.status || "all";

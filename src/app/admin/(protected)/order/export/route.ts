@@ -63,8 +63,13 @@ export async function GET(request: Request) {
 }
 
 function escapeCsv(val: string) {
-  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
-    return `"${val.replace(/"/g, '""')}"`;
+  // CSV formula injection defense (OWASP): neutralize cells starting with
+  // = + - @ tab CR (or space) by prefixing an apostrophe, which Excel and
+  // Google Sheets treat as a literal-text marker.
+  let v = val;
+  if (/^[\t\r =+@-]/.test(v)) v = `'${v}`;
+  if (v.includes(",") || v.includes('"') || v.includes("\n")) {
+    return `"${v.replace(/"/g, '""')}"`;
   }
-  return val;
+  return v;
 }

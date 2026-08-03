@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { verifyAdminSession } from "@/lib/admin-auth";
 import { AdminNav } from "@/components/admin-nav";
 import { db } from "@/db";
@@ -9,15 +10,11 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isAuthed = await verifyAdminSession();
-
-  // Login page: bare shell, no store chrome (hidden via SiteHeader/Footer path checks)
-  if (!isAuthed) {
-    return (
-      <div className="min-h-[70vh] bg-sand/20">
-        {children}
-      </div>
-    );
+  // Security gate: unauthenticated requests must never render protected
+  // children. Middleware only checks cookie existence; this layout is the
+  // real boundary. Login page lives outside this route group.
+  if (!(await verifyAdminSession())) {
+    redirect("/admin/login");
   }
 
   let pendingCount = 0;

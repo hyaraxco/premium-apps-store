@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { AdminFlash } from "@/components/admin-flash";
@@ -18,6 +19,7 @@ export default async function AdminPengaturanPage({
 }: {
   searchParams: Promise<{ flash?: string; msg?: string }>;
 }) {
+  await requireAdmin();
   const sp = await searchParams;
 
   const settingsMap: Record<string, string> = {

@@ -53,3 +53,6 @@ next-env.d.ts
 .playwright-mcp/
 playwright-report/
 test-results/
+
+# JCE context index runtime state
+.opencode-jce/context/

@@ -18,9 +18,15 @@ export function SiteHeader() {
   const { count, hydrated } = useCart();
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
+  // Close the mobile drawer on navigation. React-recommended "adjust state
+  // during render" pattern (react.dev/learn/you-might-not-need-an-effect):
+  // compares the previous pathname and resets during render instead of in an
+  // effect, avoiding an extra cascade.
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     if (!open) return;

@@ -8,6 +8,15 @@ const resend = process.env.RESEND_API_KEY
 const fromEmail = process.env.RESEND_FROM || "onboarding@resend.dev";
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+/** Escape HTML special characters before interpolation into email templates. */
+function esc(value: string | number | null | undefined): string {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (ch) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!,
+  );
+}
+
 export async function sendOrderConfirmationEmail({
   orderId,
   buyerName,
@@ -38,8 +47,8 @@ export async function sendOrderConfirmationEmail({
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1c1917; padding: 20px; border: 1px solid #e7e0d6; border-radius: 8px;">
-      <h2 style="margin-top: 0; color: #1c1917;">Pesanan Diterima: ${orderId}</h2>
-      <p>Halo <strong>${buyerName}</strong>,</p>
+      <h2 style="margin-top: 0; color: #1c1917;">Pesanan Diterima: ${esc(orderId)}</h2>
+      <p>Halo <strong>${esc(buyerName)}</strong>,</p>
       <p>Terima kasih telah memesan di Hyarax Apps! Pesanan Anda telah tercatat dan menunggu pembayaran.</p>
       
       <div style="background-color: #faf8f5; border: 1px solid #e7e0d6; border-radius: 6px; padding: 16px; margin: 20px 0;">
@@ -48,16 +57,16 @@ export async function sendOrderConfirmationEmail({
           ${items
             .map(
               (i) =>
-                `<li><strong>${i.productName}</strong> (${i.variantLabel}) x${i.qty} — ${formatIDR(i.subtotalIDR)}</li>`
+                `<li><strong>${esc(i.productName)}</strong> (${esc(i.variantLabel)}) x${esc(i.qty)} — ${esc(formatIDR(i.subtotalIDR))}</li>`
             )
             .join("")}
         </ul>
-        <p style="margin-bottom: 0; font-size: 16px;"><strong>Total Pembayaran: ${formatIDR(totalIDR)}</strong></p>
-        <p style="margin-top: 4px; font-size: 14px; color: #78716c;">Metode: ${methodLabel}</p>
+        <p style="margin-bottom: 0; font-size: 16px;"><strong>Total Pembayaran: ${esc(formatIDR(totalIDR))}</strong></p>
+        <p style="margin-top: 4px; font-size: 14px; color: #78716c;">Metode: ${esc(methodLabel)}</p>
       </div>
 
       <p>Silakan selesaikan pembayaran dan cek status pesanan Anda melalui tautan di bawah ini (simpan link ini — tidak memakai nomor order saja):</p>
-      <p><a href="${orderUrl}" style="display: inline-block; background-color: #1c1917; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-weight: 500;">Cek Status Pesanan</a></p>
+      <p><a href="${esc(orderUrl)}" style="display: inline-block; background-color: #1c1917; color: #ffffff; text-decoration: none; padding: 10px 18px; border-radius: 6px; font-weight: 500;">Cek Status Pesanan</a></p>
 
       <hr style="border: none; border-top: 1px solid #e7e0d6; margin: 24px 0;" />
       <p style="font-size: 12px; color: #78716c;">Premium Apps by Hyarax · Support 09–21 WIB</p>
@@ -68,7 +77,7 @@ export async function sendOrderConfirmationEmail({
     const data = await resend.emails.send({
       from: `Hyarax Apps <${fromEmail}>`,
       to: buyerEmail,
-      subject: `[Hyarax Apps] Pesanan Diterima ${orderId}`,
+      subject: `[Hyarax Apps] Pesanan Diterima ${esc(orderId)}`,
       html,
     });
     return { success: true, data };
@@ -105,33 +114,40 @@ export async function sendFulfillmentEmail({
   let accessHtml = "";
 
   if (fulfillmentType === "invite" && inviteLink) {
+    // Only clickable when the admin entered a real http(s) link; otherwise
+    // render as plain text. Value is escaped either way.
+    const safeHref = /^https?:\/\//i.test(inviteLink) ? esc(inviteLink) : "";
     accessHtml = `
       <p style="font-size: 15px;">Silakan klik tautan undang (Invite Link) di bawah ini untuk mengaktifkan lisensi pada akun Anda:</p>
-      <p><a href="${inviteLink}" style="display: inline-block; background-color: #0078D4; color: #ffffff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600;">Klik Untuk Aktivasi Lisensi</a></p>
-      <p style="font-size: 12px; color: #78716c;">Atau salin link: ${inviteLink}</p>
+      ${
+        safeHref
+          ? `<p><a href="${safeHref}" style="display: inline-block; background-color: #0078D4; color: #ffffff; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: 600;">Klik Untuk Aktivasi Lisensi</a></p>
+      <p style="font-size: 12px; color: #78716c;">Atau salin link: ${esc(inviteLink)}</p>`
+          : `<p style="font-size: 12px; color: #78716c;">Link aktivasi: ${esc(inviteLink)}</p>`
+      }
     `;
   } else if (username && password) {
     accessHtml = `
       <p style="font-size: 15px;">Gunakan data akses akun di bawah ini untuk masuk ke aplikasi:</p>
       <div style="background-color: #faf8f5; border: 1px solid #e7e0d6; border-radius: 6px; padding: 16px; font-family: monospace; margin: 16px 0;">
-        <p style="margin: 0 0 8px 0;"><strong>Username / Email:</strong> ${username}</p>
-        <p style="margin: 0;"><strong>Password:</strong> ${password}</p>
+        <p style="margin: 0 0 8px 0;"><strong>Username / Email:</strong> ${esc(username)}</p>
+        <p style="margin: 0;"><strong>Password:</strong> ${esc(password)}</p>
       </div>
     `;
   }
 
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #1c1917; padding: 20px; border: 1px solid #e7e0d6; border-radius: 8px;">
-      <h2 style="margin-top: 0; color: #10A37F;">Lisensi Siap Digunakan! (${orderId})</h2>
-      <p>Halo <strong>${buyerName}</strong>,</p>
-      <p>Pembayaran Anda untuk pesanan <strong>${orderId}</strong> telah terverifikasi dan akses lisensi digital Anda telah disiapkan.</p>
+      <h2 style="margin-top: 0; color: #10A37F;">Lisensi Siap Digunakan! (${esc(orderId)})</h2>
+      <p>Halo <strong>${esc(buyerName)}</strong>,</p>
+      <p>Pembayaran Anda untuk pesanan <strong>${esc(orderId)}</strong> telah terverifikasi dan akses lisensi digital Anda telah disiapkan.</p>
       
       ${accessHtml}
 
-      ${notes ? `<p style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 12px; border-radius: 6px; font-size: 13px;"><strong>Catatan Tambahan:</strong> ${notes}</p>` : ""}
+      ${notes ? `<p style="background-color: #fffbe6; border: 1px solid #ffe58f; padding: 12px; border-radius: 6px; font-size: 13px;"><strong>Catatan Tambahan:</strong> ${esc(notes)}</p>` : ""}
 
       <hr style="border: none; border-top: 1px solid #e7e0d6; margin: 24px 0;" />
-      <p style="font-size: 13px;">Simpan email ini. Status pesanan (tanpa password) memakai tautan rahasia di email konfirmasi order sebelumnya. Bantuan: tombol WhatsApp di ${appUrl}.</p>
+      <p style="font-size: 13px;">Simpan email ini. Status pesanan (tanpa password) memakai tautan rahasia di email konfirmasi order sebelumnya. Bantuan: tombol WhatsApp di ${esc(appUrl)}.</p>
       <p style="font-size: 12px; color: #78716c;">Premium Apps by Hyarax</p>
     </div>
   `;
@@ -140,7 +156,7 @@ export async function sendFulfillmentEmail({
     const data = await resend.emails.send({
       from: `Hyarax Apps <${fromEmail}>`,
       to: buyerEmail,
-      subject: `[Hyarax Apps] Akses Lisensi Anda Siap (${orderId})`,
+      subject: `[Hyarax Apps] Akses Lisensi Anda Siap (${esc(orderId)})`,
       html,
     });
     return { success: true, data };

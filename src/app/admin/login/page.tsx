@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { loginAdminAction } from "../actions";
-import { PendingSubmitButton } from "@/components/pending-submit-button";
+import { AdminLoginForm } from "@/components/admin-login-form";
 
 export const metadata: Metadata = {
   title: "Admin Login",
@@ -29,35 +28,7 @@ export default async function AdminLoginPage({
           </p>
         </div>
 
-        {(badPass || flashErr) && (
-          <div
-            role="alert"
-            className="mt-4 rounded-lg border border-rose-600/25 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-950 dark:text-rose-100"
-          >
-            {flashErr || "Password salah. Coba lagi."}
-          </div>
-        )}
-
-        <form action={loginAdminAction} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-ink">
-              Password Admin
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-              className="mt-1.5 w-full rounded-lg border border-line bg-paper px-3.5 py-2.5 text-sm text-ink placeholder:text-ink/35 focus:border-ink focus:outline-none focus:ring-1 focus:ring-ink"
-            />
-          </div>
-
-          <PendingSubmitButton size="lg" className="w-full" pendingLabel="Memeriksa…">
-            Masuk Admin
-          </PendingSubmitButton>
-        </form>
+        <AdminLoginForm badPass={badPass} flashErr={flashErr} />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { requireAdmin } from "@/lib/admin-auth";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { desc, eq, or, sql } from "drizzle-orm";
@@ -14,6 +15,8 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminDashboardPage() {
+  await requireAdmin();
+
   const [recentOrders, lowStock, revenueRows, totalRows] = await Promise.all([
     db.select().from(schema.orders).orderBy(desc(schema.orders.createdAt)).limit(5),
     db.select().from(schema.inventoryPools).where(eq(schema.inventoryPools.availableStock, 0)).limit(5),
