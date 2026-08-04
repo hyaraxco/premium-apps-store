@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin-auth";
 import { getProductsFromDb } from "@/db/queries";
+import { categories } from "@/lib/products";
+import type { ProductCategory } from "@/types/product";
 import { formatIDR } from "@/lib/format";
 import { AdminFlash } from "@/components/admin-flash";
 import { PendingSubmitButton } from "@/components/pending-submit-button";
@@ -9,6 +11,9 @@ import { cn } from "@/lib/utils";
 import { DebouncedSearch } from "@/components/debounced-search";
 import { FilterDropdown } from "@/components/filter-dropdown";
 import { toggleProductActiveAction, updatePoolStockAction } from "./actions";
+import { ProductCreateForm } from "./product-create-form";
+import { ProductEditForm, VariantsManager } from "./product-edit-form";
+import { SoftDeleteProductButton } from "./soft-delete-button";
 
 export const metadata: Metadata = {
   title: "Admin Produk & Stok",
@@ -46,6 +51,10 @@ export default async function AdminProdukPage({
   const lowStock = rawProducts.filter((p) => p.totalStock > 0 && p.totalStock <= 5).length;
   const outOfStock = rawProducts.filter((p) => p.totalStock === 0).length;
   const activeCount = rawProducts.filter((p) => p.isActive).length;
+
+  const categoryOptions = categories
+    .filter((c) => c.id !== "all")
+    .map((c) => ({ value: c.id as ProductCategory, label: c.label }));
 
   return (
     <div className="space-y-6 lg:space-y-8">
@@ -89,6 +98,26 @@ export default async function AdminProdukPage({
       </section>
 
       <section className="surface overflow-hidden">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-4 bg-paper p-5 sm:p-6 border-b border-line [&::-webkit-details-marker]:hidden">
+            <div>
+              <p className="stamp text-ink/45">Katalog baru</p>
+              <h2 className="mt-1 text-base font-semibold text-ink">Tambah produk</h2>
+              <p className="mt-0.5 text-sm text-ink/60">
+                Buat produk baru, lengkap dengan varian pertama dan stok pool awal.
+              </p>
+            </div>
+            <span className="rounded-xl bg-ink px-3.5 py-2 text-sm font-medium text-paper hover:opacity-90">
+              Tambah produk
+            </span>
+          </summary>
+          <div className="border-t border-line p-5 sm:p-6">
+            <ProductCreateForm categories={categoryOptions} />
+          </div>
+        </details>
+      </section>
+
+      <section className="surface overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-6">
           <div>
             <h2 className="text-base font-semibold text-ink">Daftar produk</h2>
@@ -127,6 +156,7 @@ export default async function AdminProdukPage({
               </thead>
               <tbody className="divide-y divide-line">
                 {allProducts.map((p, i) => (
+                  <>
                   <tr key={p.id} className={cn("transition hover:bg-sand/20", !p.isActive && "opacity-65 bg-sand/15")}>
                     <td className="px-5 py-4 text-center text-xs text-ink/50">{i + 1}</td>
                     <td className="px-5 py-4">
@@ -190,26 +220,46 @@ export default async function AdminProdukPage({
                       </span>
                     </td>
                     <td className="px-5 py-4 text-right">
-                      <form action={toggleProductActiveAction} className="inline-flex">
-                        <input type="hidden" name="productId" value={p.id} />
-                        <input type="hidden" name="currentActive" value={p.isActive ? "true" : "false"} />
-                        <PendingSubmitButton
-                          type="submit"
-                          variant="ghost"
-                          size="sm"
-                          pendingLabel="…"
-                          className={cn(
-                            "rounded-xl px-3.5 py-2",
-                            p.isActive
-                              ? "text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
-                              : "bg-emerald-500/15 font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/25",
-                          )}
-                        >
-                          {p.isActive ? "Nonaktifkan" : "Aktifkan Kembali"}
-                        </PendingSubmitButton>
-                      </form>
+                      <div className="flex flex-col items-end gap-2">
+                        <form action={toggleProductActiveAction} className="inline-flex">
+                          <input type="hidden" name="productId" value={p.id} />
+                          <input type="hidden" name="currentActive" value={p.isActive ? "true" : "false"} />
+                          <PendingSubmitButton
+                            type="submit"
+                            variant="ghost"
+                            size="sm"
+                            pendingLabel="…"
+                            className={cn(
+                              "rounded-xl px-3.5 py-2",
+                              p.isActive
+                                ? "text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
+                                : "bg-emerald-500/15 font-semibold text-emerald-800 dark:text-emerald-200 hover:bg-emerald-500/25",
+                            )}
+                          >
+                            {p.isActive ? "Nonaktifkan" : "Aktifkan Kembali"}
+                          </PendingSubmitButton>
+                        </form>
+                        <SoftDeleteProductButton productId={p.id} name={p.name} />
+                      </div>
                     </td>
                   </tr>
+                  <tr key={`${p.id}-edit`}>
+                    <td colSpan={7} className="px-5 py-0">
+                      <details className="group">
+                        <summary className="stamp flex cursor-pointer list-none items-center gap-2 px-1 py-3 text-xs font-medium text-ink/55 transition-colors hover:text-ink [&::-webkit-details-marker]:hidden">
+                          <span aria-hidden className="inline-block transition-transform group-open:rotate-90">
+                            ›
+                          </span>
+                          Edit &amp; varian — {p.name}
+                        </summary>
+                        <div className="border-t border-line bg-sand/15 p-5 sm:p-6">
+                          <ProductEditForm product={p} categories={categoryOptions} />
+                          <VariantsManager productId={p.id} variants={p.variants} />
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                  </>
                 ))}
               </tbody>
             </table>
