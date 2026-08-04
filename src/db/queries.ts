@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "./index";
 import * as schema from "./schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and, gte, sum } from "drizzle-orm";
 import type {
   Product,
   ProductStatus,
@@ -10,10 +10,74 @@ import type {
 } from "@/types/product";
 import { products as fallbackProducts } from "@/lib/products";
 
+// Automatic badge thresholds — see computeBadge for priority order.
+export const BADGE_LOW_STOCK_THRESHOLD = 5;
+export const BADGE_NEW_DAYS = 14;
+export const BADGE_SALES_WINDOW_DAYS = 30;
+
+/** Qty sold per product over the last 30 days — paid orders only, one query. */
+export async function getSalesStats30d(): Promise<Map<string, number>> {
+  const since = new Date(
+    Date.now() - BADGE_SALES_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+
+  const rows = await db
+    .select({
+      productId: schema.orderItems.productId,
+      qtySold: sum(schema.orderItems.qty),
+    })
+    .from(schema.orderItems)
+    .innerJoin(schema.orders, eq(schema.orderItems.orderId, schema.orders.id))
+    .where(
+      and(
+        eq(schema.orders.paymentStatus, "paid"),
+        gte(schema.orders.paidAt, since),
+      ),
+    )
+    .groupBy(schema.orderItems.productId);
+
+  const qtySoldByProduct = new Map<string, number>();
+  for (const row of rows) {
+    // Drizzle sum() returns string | null — coerce and default to 0.
+    qtySoldByProduct.set(row.productId, Number(row.qtySold ?? 0));
+  }
+  return qtySoldByProduct;
+}
+
+/**
+ * Automatic badge — admin override (dbBadge) wins; else exactly one computed
+ * badge by priority: low stock → best seller → hot → new.
+ */
+export function computeBadge(input: {
+  dbBadge: string | null;
+  stock: number;
+  qtySold: number;
+  qtyRank: number;
+  createdAt: Date;
+  now?: Date;
+}): string | null {
+  const { dbBadge, stock, qtySold, qtyRank, createdAt } = input;
+
+  if (dbBadge !== null && dbBadge.length > 0) return dbBadge;
+
+  if (stock >= 1 && stock < BADGE_LOW_STOCK_THRESHOLD) return "Segera habis";
+
+  if (qtyRank === 1 && qtySold > 0) return "Best seller";
+
+  if (qtyRank === 2 || qtyRank === 3) return "Hot";
+
+  const newCutoffMs =
+    (input.now ?? new Date()).getTime() - BADGE_NEW_DAYS * 24 * 60 * 60 * 1000;
+  if (createdAt.getTime() >= newCutoffMs) return "Baru";
+
+  return null;
+}
+
 function mapDbProduct(
   p: typeof schema.products.$inferSelect,
   vList: (typeof schema.productVariants.$inferSelect)[],
   poolStock: number,
+  qtySoldByProduct: Map<string, number>,
 ): Product {
   const activeVariants = vList
     .filter((v) => v.isActive)
@@ -27,6 +91,13 @@ function mapDbProduct(
   let status: ProductStatus = "available";
   if (totalStock === 0) status = "out_of_stock";
   else if (totalStock <= 5) status = "limited";
+
+  // Sales rank across the catalog — products with 0 sales get no rank (0).
+  const qtySold = qtySoldByProduct.get(p.id) ?? 0;
+  const rankOrder = [...qtySoldByProduct.entries()]
+    .filter(([, qty]) => qty > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const qtyRank = rankOrder.findIndex(([id]) => id === p.id) + 1;
 
   const delivery =
     p.fulfillmentType === "invite"
@@ -49,7 +120,13 @@ function mapDbProduct(
     fulfillmentType: p.fulfillmentType as FulfillmentType,
     sk: p.sk,
     garansi: p.garansi,
-    badge: p.badge,
+    badge: computeBadge({
+      dbBadge: p.badge,
+      stock: totalStock,
+      qtySold,
+      qtyRank,
+      createdAt: p.createdAt,
+    }),
     accent: p.accent,
     icon: p.icon,
     isActive: p.isActive,
@@ -109,13 +186,15 @@ export async function getProductsFromDb(options?: { includeInactive?: boolean })
       pools.map((p) => [p.productId, p.availableStock] as const),
     );
 
+    const qtySoldByProduct = await getSalesStats30d();
+
     return rawProducts.map((p) => {
       const vList = rawVariants.filter((v) => v.productId === p.id);
       const poolStock =
         stockByProduct.get(p.id) ??
         // expand-phase fallback: max variant stock if pool missing
         Math.max(0, ...vList.map((v) => v.stock), 0);
-      return mapDbProduct(p, vList, poolStock);
+      return mapDbProduct(p, vList, poolStock, qtySoldByProduct);
     });
   } catch (error) {
     console.error("DB Query error (getProductsFromDb):", error);
@@ -158,7 +237,9 @@ export async function getProductBySlugFromDb(
       pools[0]?.availableStock ??
       Math.max(0, ...rawVariants.map((v) => v.stock), 0);
 
-    return mapDbProduct(p, rawVariants, poolStock);
+    const qtySoldByProduct = await getSalesStats30d();
+
+    return mapDbProduct(p, rawVariants, poolStock, qtySoldByProduct);
   } catch (error) {
     console.error("DB Query error for slug:", slug, error);
     // PRD §5.1: No silent demo catalog when DATABASE_URL set.
