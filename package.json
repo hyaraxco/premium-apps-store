@@ -17,6 +17,7 @@
     "check:tx": "tsx scripts/tx-smoke.ts",
     "check:admin-pass": "tsx scripts/admin-pass-selfcheck.ts",
     "hash:admin-password": "tsx scripts/hash-password.ts",
+    "test:unit": "tsx --test tests/unit/*.test.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

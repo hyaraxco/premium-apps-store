@@ -27,7 +27,7 @@ test.describe("E2E Payment Status Flow", () => {
 
     // 3. Go to cart and proceed to checkout
     await page.goto("/keranjang");
-    await page.getByRole("link", { name: /Checkout/i }).click();
+    await page.getByRole("link", { name: "Lanjut checkout" }).click();
     await page.waitForURL("**/checkout");
 
     // 4. Fill checkout form
