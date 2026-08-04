@@ -6,7 +6,7 @@ import * as schema from "@/db/schema";
 import { eq, lt } from "drizzle-orm";
 import { randomBytes, createHash, timingSafeEqual } from "crypto";
 
-const COOKIE_NAME = "sb_admin_token";
+const COOKIE_NAME = "app_store_admin_token";
 // Fail closed in production: without ADMIN_PASSWORD no login can succeed.
 const ADMIN_PASS =
   process.env.ADMIN_PASSWORD ||
