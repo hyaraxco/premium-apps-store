@@ -1,13 +1,43 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/product-card";
 import { StatusMeta } from "@/components/status-meta";
-import { categories, getFeaturedProducts, products } from "@/lib/products";
+import { categories } from "@/lib/products";
 import { formatIDR } from "@/lib/format";
+import { getProductsFromDb } from "@/db/queries";
 
-export default function HomePage() {
-  const featured = getFeaturedProducts();
-  const lowest = Math.min(...products.map((p) => p.minPriceIDR || p.price || 0));
-  const readyCount = products.filter((p) => p.status === "available").length;
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const dbProducts = await getProductsFromDb();
+  const featured = dbProducts.slice(0, 6);
+  const lowest =
+    dbProducts.length === 0
+      ? 0
+      : Math.min(...dbProducts.map((p) => p.minPriceIDR || p.price || 0));
+  const readyCount = dbProducts.filter((p) => p.status === "available").length;
+
+  if (dbProducts.length === 0) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-18">
+        <div className="border border-dashed border-line bg-sand/25 px-6 py-12 text-center sm:py-14 rounded-[var(--radius-xl)]">
+          <p className="stamp text-ink/40">Katalog · kosong</p>
+          <p className="mt-2 text-lg font-semibold tracking-tight text-ink">
+            Belum ada lisensi tersedia
+          </p>
+          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-ink/60">
+            Katalog sedang dikosongkan. Cek kembali nanti.
+          </p>
+          <Link
+            href="/cara-kerja"
+            transitionTypes={["nav-forward"]}
+            className="mt-5 inline-flex h-10 items-center rounded-lg border border-line bg-paper px-4 text-sm font-medium text-ink hover:bg-sand/40"
+          >
+            Cara aktivasi
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -29,7 +59,7 @@ export default function HomePage() {
           <div className="min-w-0">
             <p className="stamp inline-flex items-center gap-2 rounded-md border border-line bg-paper/90 px-2.5 py-1 text-ink/60">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" aria-hidden />
-              {readyCount} siap kirim · {products.length} di katalog
+              {readyCount} siap kirim · {dbProducts.length} di katalog
             </p>
             <h1 className="mt-5 w-full max-w-xl text-[2rem] font-semibold leading-[1.12] tracking-tight text-ink sm:text-5xl sm:leading-[1.06]">
               Lisensi premium &amp; subscription, siap pakai.
